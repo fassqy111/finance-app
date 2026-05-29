@@ -183,10 +183,71 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<FinanceState>(emptyState);
   const [isDataLoading, setIsDataLoading] = useState(true);
 
-  async function ensureDefaultCategories() {
-    const { data: userData } = await supabase.auth.getUser();
+  async function getCurrentUserId() {
+    const { data } = await supabase.auth.getUser();
 
-    if (!userData.user) {
+    if (!data.user) {
+      alert("Сначала войди в аккаунт");
+      return null;
+    }
+
+    return data.user.id;
+  }
+
+  async function changeAccountBalance(accountId: string | null, delta: number) {
+    if (!accountId || delta === 0) return;
+
+    const { data, error } = await supabase
+      .from("accounts")
+      .select("balance")
+      .eq("id", accountId)
+      .single();
+
+    if (error) {
+      console.error("Ошибка чтения баланса:", error);
+      alert(error.message);
+      return;
+    }
+
+    const currentBalance = Number(data?.balance ?? 0);
+    const nextBalance = currentBalance + delta;
+
+    const { error: updateError } = await supabase
+      .from("accounts")
+      .update({
+        balance: nextBalance,
+      })
+      .eq("id", accountId);
+
+    if (updateError) {
+      console.error("Ошибка обновления баланса:", updateError);
+      alert(updateError.message);
+    }
+  }
+
+  async function applyOperationBalance(operationRow: any, direction: 1 | -1) {
+    const amount = Number(operationRow.amount ?? 0);
+
+    if (operationRow.type === "expense") {
+      await changeAccountBalance(operationRow.account_id, -amount * direction);
+      return;
+    }
+
+    if (operationRow.type === "income") {
+      await changeAccountBalance(operationRow.account_id, amount * direction);
+      return;
+    }
+
+    if (operationRow.type === "transfer") {
+      await changeAccountBalance(operationRow.account_id, -amount * direction);
+      await changeAccountBalance(operationRow.to_account_id, amount * direction);
+    }
+  }
+
+  async function ensureDefaultCategories() {
+    const userId = await getCurrentUserId();
+
+    if (!userId) {
       return;
     }
 
@@ -201,6 +262,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
 
     await supabase.from("categories").insert(
       defaultCategories.map((category) => ({
+        user_id: userId,
         name: category.name,
         type: category.type,
       }))
@@ -397,17 +459,28 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     },
 
     async addAccount(account) {
-      await supabase.from("accounts").insert({
+      const userId = await getCurrentUserId();
+
+      if (!userId) return;
+
+      const { error } = await supabase.from("accounts").insert({
+        user_id: userId,
         name: account.name,
         balance: account.balance,
         currency: "RUB",
       });
 
+      if (error) {
+        alert(error.message);
+        console.error("Ошибка создания счета:", error);
+        return;
+      }
+
       await loadData();
     },
 
     async updateAccount(account) {
-      await supabase
+      const { error } = await supabase
         .from("accounts")
         .update({
           name: account.name,
@@ -416,11 +489,17 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         })
         .eq("id", account.id);
 
+      if (error) {
+        alert(error.message);
+        console.error("Ошибка обновления счета:", error);
+        return;
+      }
+
       await loadData();
     },
 
     async deleteAccount(id) {
-      await supabase
+      const { error } = await supabase
         .from("accounts")
         .update({
           is_deleted: true,
@@ -428,22 +507,39 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         })
         .eq("id", id);
 
+      if (error) {
+        alert(error.message);
+        console.error("Ошибка удаления счета:", error);
+        return;
+      }
+
       await loadData();
     },
 
     async addGoal(goal) {
-      await supabase.from("goals").insert({
+      const userId = await getCurrentUserId();
+
+      if (!userId) return;
+
+      const { error } = await supabase.from("goals").insert({
+        user_id: userId,
         name: goal.name,
         current_amount: goal.currentAmount,
         target_amount: goal.targetAmount,
         currency: "RUB",
       });
 
+      if (error) {
+        alert(error.message);
+        console.error("Ошибка создания цели:", error);
+        return;
+      }
+
       await loadData();
     },
 
     async updateGoal(goal) {
-      await supabase
+      const { error } = await supabase
         .from("goals")
         .update({
           name: goal.name,
@@ -453,11 +549,17 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         })
         .eq("id", goal.id);
 
+      if (error) {
+        alert(error.message);
+        console.error("Ошибка обновления цели:", error);
+        return;
+      }
+
       await loadData();
     },
 
     async deleteGoal(id) {
-      await supabase
+      const { error } = await supabase
         .from("goals")
         .update({
           is_deleted: true,
@@ -465,20 +567,37 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         })
         .eq("id", id);
 
+      if (error) {
+        alert(error.message);
+        console.error("Ошибка удаления цели:", error);
+        return;
+      }
+
       await loadData();
     },
 
     async addCategory(category) {
-      await supabase.from("categories").insert({
+      const userId = await getCurrentUserId();
+
+      if (!userId) return;
+
+      const { error } = await supabase.from("categories").insert({
+        user_id: userId,
         name: category.name,
         type: category.type,
       });
+
+      if (error) {
+        alert(error.message);
+        console.error("Ошибка создания категории:", error);
+        return;
+      }
 
       await loadData();
     },
 
     async updateCategory(category) {
-      await supabase
+      const { error } = await supabase
         .from("categories")
         .update({
           name: category.name,
@@ -486,11 +605,17 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         })
         .eq("id", category.id);
 
+      if (error) {
+        alert(error.message);
+        console.error("Ошибка обновления категории:", error);
+        return;
+      }
+
       await loadData();
     },
 
     async deleteCategory(id) {
-      await supabase
+      const { error } = await supabase
         .from("categories")
         .update({
           is_deleted: true,
@@ -498,10 +623,20 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         })
         .eq("id", id);
 
+      if (error) {
+        alert(error.message);
+        console.error("Ошибка удаления категории:", error);
+        return;
+      }
+
       await loadData();
     },
 
     async addOperation(operation) {
+      const userId = await getCurrentUserId();
+
+      if (!userId) return;
+
       const accountId = findAccountId(state.accounts, operation.account);
       const toAccountId = operation.toAccount
         ? findAccountId(state.accounts, operation.toAccount)
@@ -512,7 +647,18 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
           ? null
           : findCategoryId(state.categories, operation.category);
 
-      await supabase.from("operations").insert({
+      if (!accountId) {
+        alert("Не найден счет для операции");
+        return;
+      }
+
+      if (operation.type === "transfer" && !toAccountId) {
+        alert("Не найден счет получателя");
+        return;
+      }
+
+      const operationRow = {
+        user_id: userId,
         type: operation.type,
         title: operation.title,
         amount: operation.amount,
@@ -522,12 +668,33 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         category_id: categoryId,
         note: operation.note,
         operation_date: operation.date,
-      });
+      };
 
+      const { error } = await supabase.from("operations").insert(operationRow);
+
+      if (error) {
+        alert(error.message);
+        console.error("Ошибка создания операции:", error);
+        return;
+      }
+
+      await applyOperationBalance(operationRow, 1);
       await loadData();
     },
 
     async updateOperation(operation) {
+      const { data: oldOperation, error: oldOperationError } = await supabase
+        .from("operations")
+        .select("*")
+        .eq("id", operation.id)
+        .single();
+
+      if (oldOperationError) {
+        alert(oldOperationError.message);
+        console.error("Ошибка чтения старой операции:", oldOperationError);
+        return;
+      }
+
       const accountId = findAccountId(state.accounts, operation.account);
       const toAccountId = operation.toAccount
         ? findAccountId(state.accounts, operation.toAccount)
@@ -538,26 +705,62 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
           ? null
           : findCategoryId(state.categories, operation.category);
 
-      await supabase
+      if (!accountId) {
+        alert("Не найден счет для операции");
+        return;
+      }
+
+      if (operation.type === "transfer" && !toAccountId) {
+        alert("Не найден счет получателя");
+        return;
+      }
+
+      const newOperationRow = {
+        type: operation.type,
+        title: operation.title,
+        amount: operation.amount,
+        currency: "RUB",
+        account_id: accountId,
+        to_account_id: toAccountId,
+        category_id: categoryId,
+        note: operation.note,
+        operation_date: operation.date,
+      };
+
+      await applyOperationBalance(oldOperation, -1);
+
+      const { error } = await supabase
         .from("operations")
-        .update({
-          type: operation.type,
-          title: operation.title,
-          amount: operation.amount,
-          currency: "RUB",
-          account_id: accountId,
-          to_account_id: toAccountId,
-          category_id: categoryId,
-          note: operation.note,
-          operation_date: operation.date,
-        })
+        .update(newOperationRow)
         .eq("id", operation.id);
 
+      if (error) {
+        alert(error.message);
+        console.error("Ошибка обновления операции:", error);
+        await applyOperationBalance(oldOperation, 1);
+        return;
+      }
+
+      await applyOperationBalance(newOperationRow, 1);
       await loadData();
     },
 
     async deleteOperation(id) {
-      await supabase
+      const { data: operation, error: operationError } = await supabase
+        .from("operations")
+        .select("*")
+        .eq("id", id)
+        .single();
+
+      if (operationError) {
+        alert(operationError.message);
+        console.error("Ошибка чтения операции:", operationError);
+        return;
+      }
+
+      await applyOperationBalance(operation, -1);
+
+      const { error } = await supabase
         .from("operations")
         .update({
           is_deleted: true,
@@ -565,10 +768,21 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         })
         .eq("id", id);
 
+      if (error) {
+        alert(error.message);
+        console.error("Ошибка удаления операции:", error);
+        await applyOperationBalance(operation, 1);
+        return;
+      }
+
       await loadData();
     },
 
     async addBudget(budget) {
+      const userId = await getCurrentUserId();
+
+      if (!userId) return;
+
       const categoryId = findCategoryId(state.categories, budget.category);
 
       const now = new Date();
@@ -576,7 +790,8 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         now.getMonth() + 1
       ).padStart(2, "0")}-01`;
 
-      await supabase.from("budgets").insert({
+      const { error } = await supabase.from("budgets").insert({
+        user_id: userId,
         category_id: categoryId,
         month,
         limit_amount: budget.limit,
@@ -584,13 +799,19 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         currency: "RUB",
       });
 
+      if (error) {
+        alert(error.message);
+        console.error("Ошибка создания бюджета:", error);
+        return;
+      }
+
       await loadData();
     },
 
     async updateBudget(budget) {
       const categoryId = findCategoryId(state.categories, budget.category);
 
-      await supabase
+      const { error } = await supabase
         .from("budgets")
         .update({
           category_id: categoryId,
@@ -600,11 +821,17 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         })
         .eq("id", budget.id);
 
+      if (error) {
+        alert(error.message);
+        console.error("Ошибка обновления бюджета:", error);
+        return;
+      }
+
       await loadData();
     },
 
     async deleteBudget(id) {
-      await supabase
+      const { error } = await supabase
         .from("budgets")
         .update({
           is_deleted: true,
@@ -612,10 +839,20 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         })
         .eq("id", id);
 
+      if (error) {
+        alert(error.message);
+        console.error("Ошибка удаления бюджета:", error);
+        return;
+      }
+
       await loadData();
     },
 
     async addTemplate(template) {
+      const userId = await getCurrentUserId();
+
+      if (!userId) return;
+
       const fromAccountId = findAccountId(state.accounts, template.fromAccount);
       const toAccountId = template.toAccount
         ? findAccountId(state.accounts, template.toAccount)
@@ -626,7 +863,8 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
           ? null
           : findCategoryId(state.categories, template.category);
 
-      await supabase.from("recurring_templates").insert({
+      const { error } = await supabase.from("recurring_templates").insert({
+        user_id: userId,
         type: template.type,
         title: template.title,
         amount: template.amount,
@@ -639,6 +877,12 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         day_of_week: template.dayOfWeek,
         day_of_month: template.dayOfMonth,
       });
+
+      if (error) {
+        alert(error.message);
+        console.error("Ошибка создания шаблона:", error);
+        return;
+      }
 
       await loadData();
     },
@@ -654,7 +898,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
           ? null
           : findCategoryId(state.categories, template.category);
 
-      await supabase
+      const { error } = await supabase
         .from("recurring_templates")
         .update({
           type: template.type,
@@ -671,17 +915,29 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         })
         .eq("id", template.id);
 
+      if (error) {
+        alert(error.message);
+        console.error("Ошибка обновления шаблона:", error);
+        return;
+      }
+
       await loadData();
     },
 
     async deleteTemplate(id) {
-      await supabase
+      const { error } = await supabase
         .from("recurring_templates")
         .update({
           is_deleted: true,
           deleted_at: new Date().toISOString(),
         })
         .eq("id", id);
+
+      if (error) {
+        alert(error.message);
+        console.error("Ошибка удаления шаблона:", error);
+        return;
+      }
 
       await loadData();
     },
@@ -700,13 +956,48 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         template: "recurring_templates",
       } as const;
 
-      await supabase
+      if (trashItem.type === "operation") {
+        const { data: operation, error: operationError } = await supabase
+          .from("operations")
+          .select("*")
+          .eq("id", id)
+          .single();
+
+        if (operationError) {
+          alert(operationError.message);
+          console.error("Ошибка чтения операции:", operationError);
+          return;
+        }
+
+        await applyOperationBalance(operation, 1);
+      }
+
+      const { error } = await supabase
         .from(tableByType[trashItem.type])
         .update({
           is_deleted: false,
           deleted_at: null,
         })
         .eq("id", id);
+
+      if (error) {
+        alert(error.message);
+        console.error("Ошибка восстановления:", error);
+
+        if (trashItem.type === "operation") {
+          const { data: operation } = await supabase
+            .from("operations")
+            .select("*")
+            .eq("id", id)
+            .single();
+
+          if (operation) {
+            await applyOperationBalance(operation, -1);
+          }
+        }
+
+        return;
+      }
 
       await loadData();
     },
@@ -725,7 +1016,16 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         template: "recurring_templates",
       } as const;
 
-      await supabase.from(tableByType[trashItem.type]).delete().eq("id", id);
+      const { error } = await supabase
+        .from(tableByType[trashItem.type])
+        .delete()
+        .eq("id", id);
+
+      if (error) {
+        alert(error.message);
+        console.error("Ошибка удаления навсегда:", error);
+        return;
+      }
 
       await loadData();
     },
