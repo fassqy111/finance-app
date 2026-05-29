@@ -1,0 +1,26 @@
+﻿<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="112" fill="#080A12"/>
+  <rect x="56" y="56" width="400" height="400" rx="92" fill="url(#backgroundGradient)"/>
+  <circle cx="256" cy="256" r="132" fill="#080A12" fill-opacity="0.72"/>
+
+  <path
+    d="M256 146C195.25 146 146 195.25 146 256C146 316.75 195.25 366 256 366C316.75 366 366 316.75 366 256C366 195.25 316.75 146 256 146ZM256 184C295.76 184 328 216.24 328 256C328 295.76 295.76 328 256 328C216.24 328 184 295.76 184 256C184 216.24 216.24 184 256 184Z"
+    fill="#34D399"
+    fill-opacity="0.24"
+  />
+
+  <path d="M271 126V386H238V126H271Z" fill="white"/>
+
+  <path
+    d="M318 177C304 166 285 160 264 160H237C207 160 185 179 185 205C185 232 205 247 242 257L272 265C292 270 301 278 301 291C301 306 287 316 263 316H248C225 316 204 309 187 296L169 328C189 343 215 351 245 351H265C306 351 337 327 337 289C337 261 319 243 283 233L251 224C230 218 221 211 221 199C221 186 233 178 252 178H263C279 178 294 183 306 193L318 177Z"
+    fill="white"
+  />
+
+  <defs>
+    <linearGradient id="backgroundGradient" x1="56" y1="56" x2="456" y2="456" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#34D399" stop-opacity="0.35"/>
+      <stop offset="0.5" stop-color="#3B82F6" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.08"/>
+    </linearGradient>
+  </defs>
+</svg>
