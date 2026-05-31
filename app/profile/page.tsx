@@ -40,6 +40,15 @@ function getTrashTypeColor(type: string) {
 }
 
 const settingsItems = [
+
+    {
+    href: "/profile/import",
+    title: "Импорт / Экспорт",
+    description: "Перенос истории операций и выгрузка данных",
+    icon: "⇅",
+    color: "bg-cyan-400/15 text-cyan-300",
+  },
+  
   {
     href: "/profile/accounts",
     title: "Управление счетами",

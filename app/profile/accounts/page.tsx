@@ -206,12 +206,23 @@ export default function AccountsPage() {
                     </button>
 
                     <button
-                      type="button"
-                      onClick={() => deleteAccount(account.id)}
-                      className="rounded-xl bg-rose-400/10 px-4 py-2 text-sm text-rose-300 hover:bg-rose-400/15"
-                    >
-                      Удалить
-                    </button>
+  type="button"
+  onClick={() => {
+    const shouldDeleteOperations = window.confirm(
+      "Удалить счет вместе со всеми операциями?\n\nOK — удалить счет и операции\nОтмена — удалить только счет, операции оставить в истории"
+    );
+
+    if (shouldDeleteOperations) {
+      deleteAccount(account.id, "delete_operations");
+      return;
+    }
+
+    deleteAccount(account.id, "keep_operations");
+  }}
+  className="rounded-xl bg-rose-400/10 px-4 py-2 text-sm text-rose-300 hover:bg-rose-400/15"
+>
+  Удалить
+</button>
                   </div>
                 </div>
               );

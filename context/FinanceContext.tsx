@@ -29,7 +29,10 @@ type FinanceContextValue = FinanceState & {
 
   addAccount: (account: Omit<Account, "id">) => Promise<void>;
   updateAccount: (account: Account) => Promise<void>;
-  deleteAccount: (id: string) => Promise<void>;
+  deleteAccount: (
+  id: string,
+  mode?: "keep_operations" | "delete_operations"
+) => Promise<void>;
 
   addGoal: (goal: Omit<Goal, "id">) => Promise<void>;
   updateGoal: (goal: Goal) => Promise<void>;
@@ -630,23 +633,61 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       await loadData();
     },
 
-    async deleteAccount(id) {
-      const { error } = await supabase
-        .from("accounts")
+    async deleteAccount(id, mode = "keep_operations") {
+  if (mode === "delete_operations") {
+    const { data: relatedOperations, error: operationsError } = await supabase
+      .from("operations")
+      .select("*")
+      .or(`account_id.eq.${id},to_account_id.eq.${id}`)
+      .eq("is_deleted", false);
+
+    if (operationsError) {
+      alert(operationsError.message);
+      console.error("Ошибка чтения операций счета:", operationsError);
+      return;
+    }
+
+    for (const operation of relatedOperations ?? []) {
+      await applyOperationBalance(operation, -1);
+    }
+
+    const operationIds = (relatedOperations ?? []).map(
+      (operation) => operation.id
+    );
+
+    if (operationIds.length > 0) {
+      const { error: deleteOperationsError } = await supabase
+        .from("operations")
         .update({
           is_deleted: true,
           deleted_at: new Date().toISOString(),
         })
-        .eq("id", id);
+        .in("id", operationIds);
 
-      if (error) {
-        alert(error.message);
-        console.error("Ошибка удаления счета:", error);
+      if (deleteOperationsError) {
+        alert(deleteOperationsError.message);
+        console.error("Ошибка удаления операций счета:", deleteOperationsError);
         return;
       }
+    }
+  }
 
-      await loadData();
-    },
+  const { error } = await supabase
+    .from("accounts")
+    .update({
+      is_deleted: true,
+      deleted_at: new Date().toISOString(),
+    })
+    .eq("id", id);
+
+  if (error) {
+    alert(error.message);
+    console.error("Ошибка удаления счета:", error);
+    return;
+  }
+
+  await loadData();
+},
 
     async addGoal(goal) {
       const userId = await getCurrentUserId();
