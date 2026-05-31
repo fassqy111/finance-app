@@ -289,11 +289,47 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  async function changeBudgetSpent(categoryId: string | null, delta: number) {
+    if (!categoryId || delta === 0) return;
+
+    const { data, error } = await supabase
+      .from("budgets")
+      .select("id, spent_amount")
+      .eq("category_id", categoryId)
+      .eq("is_deleted", false)
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      console.error("Ошибка чтения бюджета:", error);
+      alert(error.message);
+      return;
+    }
+
+    if (!data) return;
+
+    const currentSpent = Number(data.spent_amount ?? 0);
+    const nextSpent = Math.max(0, currentSpent + delta);
+
+    const { error: updateError } = await supabase
+      .from("budgets")
+      .update({
+        spent_amount: nextSpent,
+      })
+      .eq("id", data.id);
+
+    if (updateError) {
+      console.error("Ошибка обновления бюджета:", updateError);
+      alert(updateError.message);
+    }
+  }
+
   async function applyOperationBalance(operationRow: any, direction: 1 | -1) {
     const amount = Number(operationRow.amount ?? 0);
 
     if (operationRow.type === "expense") {
       await changeAccountBalance(operationRow.account_id, -amount * direction);
+      await changeBudgetSpent(operationRow.category_id, amount * direction);
       return;
     }
 
@@ -315,7 +351,10 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       }
 
       if (toTargetType === "account") {
-        await changeAccountBalance(operationRow.to_account_id, amount * direction);
+        await changeAccountBalance(
+          operationRow.to_account_id,
+          amount * direction
+        );
       }
 
       if (toTargetType === "goal") {
@@ -415,7 +454,9 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
 
     const activeOperations = allOperationRows
       .filter((row: any) => !row.is_deleted)
-      .map((row: any) => mapOperation(row, allAccounts, allGoals, allCategories));
+      .map((row: any) =>
+        mapOperation(row, allAccounts, allGoals, allCategories)
+      );
 
     const activeBudgets = allBudgetRows
       .filter((row: any) => !row.is_deleted)
@@ -459,7 +500,12 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       ...allOperationRows
         .filter((row: any) => row.is_deleted)
         .map((row: any) => {
-          const operation = mapOperation(row, allAccounts, allGoals, allCategories);
+          const operation = mapOperation(
+            row,
+            allAccounts,
+            allGoals,
+            allCategories
+          );
 
           return {
             id: row.id,
@@ -487,7 +533,12 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       ...allTemplateRows
         .filter((row: any) => row.is_deleted)
         .map((row: any) => {
-          const template = mapTemplate(row, allAccounts, allGoals, allCategories);
+          const template = mapTemplate(
+            row,
+            allAccounts,
+            allGoals,
+            allCategories
+          );
 
           return {
             id: row.id,
