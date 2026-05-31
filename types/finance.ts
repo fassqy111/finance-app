@@ -15,13 +15,23 @@ export type Goal = {
 
 export type OperationType = "income" | "expense" | "transfer";
 
+export type TransferTargetType = "account" | "goal";
+
 export type Operation = {
   id: string;
   type: OperationType;
   title: string;
   amount: number;
+
   account: string;
   toAccount?: string;
+
+  fromTargetType?: TransferTargetType;
+  toTargetType?: TransferTargetType;
+
+  goal?: string;
+  toGoal?: string;
+
   category: string;
   note?: string;
   date: string;
@@ -50,8 +60,16 @@ export type RecurringTemplate = {
   type: OperationType;
   title: string;
   amount: number;
+
   fromAccount: string;
   toAccount?: string;
+
+  fromTargetType?: TransferTargetType;
+  toTargetType?: TransferTargetType;
+
+  fromGoal?: string;
+  toGoal?: string;
+
   category?: string;
   note?: string;
   frequency: RecurringFrequency;

@@ -7,6 +7,7 @@ import type {
   OperationType,
   RecurringFrequency,
   RecurringTemplate,
+  TransferTargetType,
 } from "@/types/finance";
 
 function getFrequencyLabel(template: RecurringTemplate) {
@@ -67,9 +68,28 @@ function getFrequencyShortLabel(frequency: RecurringFrequency) {
   return "Месяц";
 }
 
+function getTemplateSourceLabel(template: RecurringTemplate) {
+  if (template.type !== "transfer") {
+    return template.fromAccount;
+  }
+
+  const from =
+    template.fromTargetType === "goal"
+      ? `Цель: ${template.fromGoal ?? "Не выбрано"}`
+      : `Счет: ${template.fromAccount}`;
+
+  const to =
+    template.toTargetType === "goal"
+      ? `Цель: ${template.toGoal ?? "Не выбрано"}`
+      : `Счет: ${template.toAccount ?? "Не выбрано"}`;
+
+  return `${from} → ${to}`;
+}
+
 export default function TemplatesPage() {
   const {
     accounts,
+    goals,
     categories,
     recurringTemplates,
     addTemplate,
@@ -80,8 +100,17 @@ export default function TemplatesPage() {
   const [type, setType] = useState<OperationType>("expense");
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
+
+  const [fromTargetType, setFromTargetType] =
+    useState<TransferTargetType>("account");
+  const [toTargetType, setToTargetType] =
+    useState<TransferTargetType>("account");
+
   const [fromAccount, setFromAccount] = useState(accounts[0]?.name ?? "");
   const [toAccount, setToAccount] = useState(accounts[1]?.name ?? "");
+  const [fromGoal, setFromGoal] = useState(goals[0]?.name ?? "");
+  const [toGoal, setToGoal] = useState(goals[0]?.name ?? "");
+
   const [category, setCategory] = useState("");
   const [frequency, setFrequency] = useState<RecurringFrequency>("monthly");
   const [dayOfWeek, setDayOfWeek] = useState("1");
@@ -120,8 +149,12 @@ export default function TemplatesPage() {
     setType("expense");
     setTitle("");
     setAmount("");
+    setFromTargetType("account");
+    setToTargetType("account");
     setFromAccount(accounts[0]?.name ?? "");
     setToAccount(accounts[1]?.name ?? "");
+    setFromGoal(goals[0]?.name ?? "");
+    setToGoal(goals[0]?.name ?? "");
     setCategory("");
     setFrequency("monthly");
     setDayOfWeek("1");
@@ -133,6 +166,11 @@ export default function TemplatesPage() {
   function changeType(nextType: OperationType) {
     setType(nextType);
     setCategory("");
+
+    if (nextType !== "transfer") {
+      setFromTargetType("account");
+      setToTargetType("account");
+    }
   }
 
   async function saveTemplate(event: React.FormEvent<HTMLFormElement>) {
@@ -140,23 +178,87 @@ export default function TemplatesPage() {
 
     const numericAmount = Number(amount);
 
-    if (
-      !title.trim() ||
-      !fromAccount ||
-      numericAmount <= 0 ||
-      (type !== "transfer" && !category.trim()) ||
-      (type === "transfer" && !toAccount)
-    ) {
-      alert("Заполни название, сумму, счет и категорию");
+    if (!title.trim() || numericAmount <= 0) {
+      alert("Заполни название и сумму");
       return;
+    }
+
+    if (type !== "transfer") {
+      if (!fromAccount) {
+        alert("Выбери счет");
+        return;
+      }
+
+      if (!category.trim()) {
+        alert("Выбери категорию");
+        return;
+      }
+    }
+
+    if (type === "transfer") {
+      if (fromTargetType === "account" && !fromAccount) {
+        alert("Выбери счет списания");
+        return;
+      }
+
+      if (fromTargetType === "goal" && !fromGoal) {
+        alert("Выбери цель списания");
+        return;
+      }
+
+      if (toTargetType === "account" && !toAccount) {
+        alert("Выбери счет зачисления");
+        return;
+      }
+
+      if (toTargetType === "goal" && !toGoal) {
+        alert("Выбери цель зачисления");
+        return;
+      }
+
+      if (
+        fromTargetType === "account" &&
+        toTargetType === "account" &&
+        fromAccount === toAccount
+      ) {
+        alert("Счет списания и зачисления не должны совпадать");
+        return;
+      }
+
+      if (
+        fromTargetType === "goal" &&
+        toTargetType === "goal" &&
+        fromGoal === toGoal
+      ) {
+        alert("Цель списания и зачисления не должны совпадать");
+        return;
+      }
     }
 
     const templateData = {
       type,
       title: title.trim(),
       amount: numericAmount,
-      fromAccount,
-      toAccount: type === "transfer" ? toAccount : undefined,
+
+      fromAccount:
+        type === "transfer" && fromTargetType === "goal" ? "" : fromAccount,
+
+      toAccount:
+        type === "transfer" && toTargetType === "account"
+          ? toAccount
+          : undefined,
+
+      fromTargetType,
+      toTargetType,
+
+      fromGoal:
+        type === "transfer" && fromTargetType === "goal"
+          ? fromGoal
+          : undefined,
+
+      toGoal:
+        type === "transfer" && toTargetType === "goal" ? toGoal : undefined,
+
       category: type === "transfer" ? "Перевод" : category.trim(),
       note: note.trim(),
       frequency,
@@ -181,8 +283,18 @@ export default function TemplatesPage() {
     setType(template.type);
     setTitle(template.title);
     setAmount(String(template.amount));
-    setFromAccount(template.fromAccount);
-    setToAccount(template.toAccount ?? accounts[1]?.name ?? "");
+
+    setFromTargetType(template.fromTargetType ?? "account");
+    setToTargetType(template.toTargetType ?? "account");
+
+    setFromAccount(template.fromAccount || accounts[0]?.name || "");
+    setToAccount(
+      template.toAccount ?? accounts[1]?.name ?? accounts[0]?.name ?? ""
+    );
+
+    setFromGoal(template.fromGoal ?? goals[0]?.name ?? "");
+    setToGoal(template.toGoal ?? goals[0]?.name ?? "");
+
     setCategory(template.type === "transfer" ? "" : template.category ?? "");
     setFrequency(template.frequency);
     setDayOfWeek(String(template.dayOfWeek ?? 1));
@@ -197,7 +309,7 @@ export default function TemplatesPage() {
 
   return (
     <main className="min-h-screen bg-[#080A12] text-white p-4 pb-24">
-      <section className="mx-auto max-w-md space-y-6">
+      <section className="mx-auto max-w-md space-y-6 md:max-w-2xl lg:max-w-4xl">
         <header className="pt-4">
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -304,51 +416,165 @@ export default function TemplatesPage() {
             className="w-full rounded-2xl border border-white/10 bg-black/25 p-4 text-white outline-none placeholder:text-slate-500 focus:border-blue-400/60"
           />
 
-          <select
-            value={fromAccount}
-            onChange={(event) => setFromAccount(event.target.value)}
-            className="w-full rounded-2xl border border-white/10 bg-black/25 p-4 text-white outline-none focus:border-blue-400/60"
-          >
-            {accounts.length === 0 && <option value="">Нет счетов</option>}
+          {type !== "transfer" && (
+            <>
+              <select
+                value={fromAccount}
+                onChange={(event) => setFromAccount(event.target.value)}
+                className="w-full rounded-2xl border border-white/10 bg-black/25 p-4 text-white outline-none focus:border-blue-400/60"
+              >
+                {accounts.length === 0 && <option value="">Нет счетов</option>}
 
-            {accounts.map((account) => (
-              <option key={account.id} value={account.name}>
-                {type === "income" ? "На счет: " : "Со счета: "}
-                {account.name}
-              </option>
-            ))}
-          </select>
+                {accounts.map((account) => (
+                  <option key={account.id} value={account.name}>
+                    {type === "income" ? "На счет: " : "Со счета: "}
+                    {account.name}
+                  </option>
+                ))}
+              </select>
 
-          {type === "transfer" && (
-            <select
-              value={toAccount}
-              onChange={(event) => setToAccount(event.target.value)}
-              className="w-full rounded-2xl border border-white/10 bg-black/25 p-4 text-white outline-none focus:border-blue-400/60"
-            >
-              {accounts.length === 0 && <option value="">Нет счетов</option>}
+              <select
+                value={category}
+                onChange={(event) => setCategory(event.target.value)}
+                className="w-full rounded-2xl border border-white/10 bg-black/25 p-4 text-white outline-none focus:border-blue-400/60"
+              >
+                <option value="">Выбери категорию</option>
 
-              {accounts.map((account) => (
-                <option key={account.id} value={account.name}>
-                  На счет: {account.name}
-                </option>
-              ))}
-            </select>
+                {availableCategories.map((categoryItem) => (
+                  <option key={categoryItem.id} value={categoryItem.name}>
+                    {categoryItem.name}
+                  </option>
+                ))}
+              </select>
+            </>
           )}
 
-          {type !== "transfer" && (
-            <select
-              value={category}
-              onChange={(event) => setCategory(event.target.value)}
-              className="w-full rounded-2xl border border-white/10 bg-black/25 p-4 text-white outline-none focus:border-blue-400/60"
-            >
-              <option value="">Выбери категорию</option>
+          {type === "transfer" && (
+            <section className="space-y-3 rounded-3xl border border-blue-400/20 bg-blue-400/10 p-4">
+              <p className="font-semibold text-blue-200">Откуда переводить</p>
 
-              {availableCategories.map((categoryItem) => (
-                <option key={categoryItem.id} value={categoryItem.name}>
-                  {categoryItem.name}
-                </option>
-              ))}
-            </select>
+              <div className="grid grid-cols-2 gap-2 rounded-3xl bg-black/25 p-1">
+                <button
+                  type="button"
+                  onClick={() => setFromTargetType("account")}
+                  className={`rounded-2xl px-4 py-3 text-sm font-medium ${
+                    fromTargetType === "account"
+                      ? "bg-white text-neutral-950"
+                      : "text-slate-400"
+                  }`}
+                >
+                  Со счета
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setFromTargetType("goal")}
+                  className={`rounded-2xl px-4 py-3 text-sm font-medium ${
+                    fromTargetType === "goal"
+                      ? "bg-white text-neutral-950"
+                      : "text-slate-400"
+                  }`}
+                >
+                  С цели
+                </button>
+              </div>
+
+              {fromTargetType === "account" && (
+                <select
+                  value={fromAccount}
+                  onChange={(event) => setFromAccount(event.target.value)}
+                  className="w-full rounded-2xl border border-white/10 bg-black/25 p-4 text-white outline-none"
+                >
+                  {accounts.length === 0 && (
+                    <option value="">Нет счетов</option>
+                  )}
+
+                  {accounts.map((account) => (
+                    <option key={account.id} value={account.name}>
+                      {account.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              {fromTargetType === "goal" && (
+                <select
+                  value={fromGoal}
+                  onChange={(event) => setFromGoal(event.target.value)}
+                  className="w-full rounded-2xl border border-white/10 bg-black/25 p-4 text-white outline-none"
+                >
+                  {goals.length === 0 && <option value="">Нет целей</option>}
+
+                  {goals.map((goal) => (
+                    <option key={goal.id} value={goal.name}>
+                      {goal.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              <p className="pt-2 font-semibold text-blue-200">Куда переводить</p>
+
+              <div className="grid grid-cols-2 gap-2 rounded-3xl bg-black/25 p-1">
+                <button
+                  type="button"
+                  onClick={() => setToTargetType("account")}
+                  className={`rounded-2xl px-4 py-3 text-sm font-medium ${
+                    toTargetType === "account"
+                      ? "bg-white text-neutral-950"
+                      : "text-slate-400"
+                  }`}
+                >
+                  На счет
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setToTargetType("goal")}
+                  className={`rounded-2xl px-4 py-3 text-sm font-medium ${
+                    toTargetType === "goal"
+                      ? "bg-white text-neutral-950"
+                      : "text-slate-400"
+                  }`}
+                >
+                  На цель
+                </button>
+              </div>
+
+              {toTargetType === "account" && (
+                <select
+                  value={toAccount}
+                  onChange={(event) => setToAccount(event.target.value)}
+                  className="w-full rounded-2xl border border-white/10 bg-black/25 p-4 text-white outline-none"
+                >
+                  {accounts.length === 0 && (
+                    <option value="">Нет счетов</option>
+                  )}
+
+                  {accounts.map((account) => (
+                    <option key={account.id} value={account.name}>
+                      {account.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              {toTargetType === "goal" && (
+                <select
+                  value={toGoal}
+                  onChange={(event) => setToGoal(event.target.value)}
+                  className="w-full rounded-2xl border border-white/10 bg-black/25 p-4 text-white outline-none"
+                >
+                  {goals.length === 0 && <option value="">Нет целей</option>}
+
+                  {goals.map((goal) => (
+                    <option key={goal.id} value={goal.name}>
+                      {goal.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </section>
           )}
 
           <select
@@ -448,9 +674,10 @@ export default function TemplatesPage() {
                     </p>
 
                     <p className="mt-1 truncate text-sm text-slate-500">
-                      {template.fromAccount}
-                      {template.toAccount ? ` → ${template.toAccount}` : ""}
-                      {template.category ? ` · ${template.category}` : ""}
+                      {getTemplateSourceLabel(template)}
+                      {template.type !== "transfer" && template.category
+                        ? ` · ${template.category}`
+                        : ""}
                     </p>
                   </div>
                 </div>

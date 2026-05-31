@@ -3,7 +3,11 @@
 import { useState } from "react";
 import { useFinance } from "@/context/FinanceContext";
 import { formatMoney, getTodayDate } from "@/lib/format";
-import type { Operation, OperationType } from "@/types/finance";
+import type {
+  Operation,
+  OperationType,
+  TransferTargetType,
+} from "@/types/finance";
 
 function getOperationSign(type: OperationType) {
   if (type === "expense") return "−";
@@ -35,9 +39,28 @@ function getOperationLabel(type: OperationType) {
   return "Перевод";
 }
 
+function getSourceLabel(operation: Operation) {
+  if (operation.type !== "transfer") {
+    return operation.account;
+  }
+
+  const from =
+    operation.fromTargetType === "goal"
+      ? `Цель: ${operation.goal ?? "Не выбрано"}`
+      : `Счет: ${operation.account}`;
+
+  const to =
+    operation.toTargetType === "goal"
+      ? `Цель: ${operation.toGoal ?? "Не выбрано"}`
+      : `Счет: ${operation.toAccount ?? "Не выбрано"}`;
+
+  return `${from} → ${to}`;
+}
+
 export default function OperationsPage() {
   const {
     accounts,
+    goals,
     categories,
     operations,
     addOperation,
@@ -54,8 +77,17 @@ export default function OperationsPage() {
   const [type, setType] = useState<OperationType>("expense");
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
+
+  const [fromTargetType, setFromTargetType] =
+    useState<TransferTargetType>("account");
+  const [toTargetType, setToTargetType] =
+    useState<TransferTargetType>("account");
+
   const [account, setAccount] = useState(accounts[0]?.name ?? "");
   const [toAccount, setToAccount] = useState(accounts[1]?.name ?? "");
+  const [goal, setGoal] = useState(goals[0]?.name ?? "");
+  const [toGoal, setToGoal] = useState(goals[0]?.name ?? "");
+
   const [category, setCategory] = useState("");
   const [note, setNote] = useState("");
   const [date, setDate] = useState(getTodayDate());
@@ -82,6 +114,9 @@ export default function OperationsPage() {
     const matchesSearch =
       operation.title.toLowerCase().includes(searchText) ||
       operation.account.toLowerCase().includes(searchText) ||
+      operation.toAccount?.toLowerCase().includes(searchText) ||
+      operation.goal?.toLowerCase().includes(searchText) ||
+      operation.toGoal?.toLowerCase().includes(searchText) ||
       operation.category.toLowerCase().includes(searchText) ||
       operation.note?.toLowerCase().includes(searchText) ||
       String(operation.amount).includes(searchText);
@@ -97,8 +132,12 @@ export default function OperationsPage() {
     setType("expense");
     setTitle("");
     setAmount("");
+    setFromTargetType("account");
+    setToTargetType("account");
     setAccount(accounts[0]?.name ?? "");
     setToAccount(accounts[1]?.name ?? "");
+    setGoal(goals[0]?.name ?? "");
+    setToGoal(goals[0]?.name ?? "");
     setCategory("");
     setNote("");
     setDate(getTodayDate());
@@ -107,6 +146,11 @@ export default function OperationsPage() {
   function changeType(nextType: OperationType) {
     setType(nextType);
     setCategory("");
+
+    if (nextType !== "transfer") {
+      setFromTargetType("account");
+      setToTargetType("account");
+    }
   }
 
   async function saveOperation(event: React.FormEvent<HTMLFormElement>) {
@@ -114,23 +158,82 @@ export default function OperationsPage() {
 
     const numericAmount = Number(amount);
 
-    if (
-      !title.trim() ||
-      !account ||
-      numericAmount <= 0 ||
-      (type === "transfer" && !toAccount) ||
-      (type !== "transfer" && !category.trim())
-    ) {
-      alert("Заполни название, сумму, счет и категорию");
+    if (!title.trim() || numericAmount <= 0) {
+      alert("Заполни название и сумму");
       return;
+    }
+
+    if (type !== "transfer") {
+      if (!account) {
+        alert("Выбери счет");
+        return;
+      }
+
+      if (!category.trim()) {
+        alert("Выбери категорию");
+        return;
+      }
+    }
+
+    if (type === "transfer") {
+      if (fromTargetType === "account" && !account) {
+        alert("Выбери счет списания");
+        return;
+      }
+
+      if (fromTargetType === "goal" && !goal) {
+        alert("Выбери цель списания");
+        return;
+      }
+
+      if (toTargetType === "account" && !toAccount) {
+        alert("Выбери счет зачисления");
+        return;
+      }
+
+      if (toTargetType === "goal" && !toGoal) {
+        alert("Выбери цель зачисления");
+        return;
+      }
+
+      if (
+        fromTargetType === "account" &&
+        toTargetType === "account" &&
+        account === toAccount
+      ) {
+        alert("Счет списания и зачисления не должны совпадать");
+        return;
+      }
+
+      if (
+        fromTargetType === "goal" &&
+        toTargetType === "goal" &&
+        goal === toGoal
+      ) {
+        alert("Цель списания и зачисления не должны совпадать");
+        return;
+      }
     }
 
     const operationData = {
       type,
       title: title.trim(),
       amount: numericAmount,
-      account,
-      toAccount: type === "transfer" ? toAccount : undefined,
+
+      account: type === "transfer" && fromTargetType === "goal" ? "" : account,
+      toAccount:
+        type === "transfer" && toTargetType === "account"
+          ? toAccount
+          : undefined,
+
+      fromTargetType,
+      toTargetType,
+
+      goal:
+        type === "transfer" && fromTargetType === "goal" ? goal : undefined,
+      toGoal:
+        type === "transfer" && toTargetType === "goal" ? toGoal : undefined,
+
       category: type === "transfer" ? "Перевод" : category.trim(),
       note: note.trim(),
       date,
@@ -153,8 +256,16 @@ export default function OperationsPage() {
     setType(operation.type);
     setTitle(operation.title);
     setAmount(String(operation.amount));
-    setAccount(operation.account);
-    setToAccount(operation.toAccount ?? accounts[1]?.name ?? "");
+
+    setFromTargetType(operation.fromTargetType ?? "account");
+    setToTargetType(operation.toTargetType ?? "account");
+
+    setAccount(operation.account || accounts[0]?.name || "");
+    setToAccount(operation.toAccount ?? accounts[1]?.name ?? accounts[0]?.name ?? "");
+
+    setGoal(operation.goal ?? goals[0]?.name ?? "");
+    setToGoal(operation.toGoal ?? goals[0]?.name ?? "");
+
     setCategory(operation.type === "transfer" ? "" : operation.category);
     setNote(operation.note ?? "");
     setDate(operation.date);
@@ -167,7 +278,7 @@ export default function OperationsPage() {
 
   return (
     <main className="min-h-screen bg-[#080A12] text-white p-4 pb-24">
-      <section className="mx-auto max-w-md space-y-6">
+      <section className="mx-auto max-w-md space-y-6 md:max-w-2xl lg:max-w-4xl">
         <header className="pt-4">
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -259,47 +370,167 @@ export default function OperationsPage() {
             className="w-full rounded-2xl border border-white/10 bg-black/25 p-4 text-white outline-none placeholder:text-slate-500 focus:border-emerald-400/60"
           />
 
-          <select
-            value={account}
-            onChange={(event) => setAccount(event.target.value)}
-            className="w-full rounded-2xl border border-white/10 bg-black/25 p-4 text-white outline-none focus:border-emerald-400/60"
-          >
-            {accounts.map((accountItem) => (
-              <option key={accountItem.id} value={accountItem.name}>
-                {type === "income" ? "На счет: " : "Со счета: "}
-                {accountItem.name}
-              </option>
-            ))}
-          </select>
+          {type !== "transfer" && (
+            <>
+              <select
+                value={account}
+                onChange={(event) => setAccount(event.target.value)}
+                className="w-full rounded-2xl border border-white/10 bg-black/25 p-4 text-white outline-none focus:border-emerald-400/60"
+              >
+                {accounts.length === 0 && <option value="">Нет счетов</option>}
 
-          {type === "transfer" && (
-            <select
-              value={toAccount}
-              onChange={(event) => setToAccount(event.target.value)}
-              className="w-full rounded-2xl border border-white/10 bg-black/25 p-4 text-white outline-none focus:border-emerald-400/60"
-            >
-              {accounts.map((accountItem) => (
-                <option key={accountItem.id} value={accountItem.name}>
-                  На счет: {accountItem.name}
-                </option>
-              ))}
-            </select>
+                {accounts.map((accountItem) => (
+                  <option key={accountItem.id} value={accountItem.name}>
+                    {type === "income" ? "На счет: " : "Со счета: "}
+                    {accountItem.name}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={category}
+                onChange={(event) => setCategory(event.target.value)}
+                className="w-full rounded-2xl border border-white/10 bg-black/25 p-4 text-white outline-none focus:border-emerald-400/60"
+              >
+                <option value="">Выбери категорию</option>
+
+                {availableCategories.map((categoryItem) => (
+                  <option key={categoryItem.id} value={categoryItem.name}>
+                    {categoryItem.name}
+                  </option>
+                ))}
+              </select>
+            </>
           )}
 
-          {type !== "transfer" && (
-            <select
-              value={category}
-              onChange={(event) => setCategory(event.target.value)}
-              className="w-full rounded-2xl border border-white/10 bg-black/25 p-4 text-white outline-none focus:border-emerald-400/60"
-            >
-              <option value="">Выбери категорию</option>
+          {type === "transfer" && (
+            <section className="space-y-3 rounded-3xl border border-blue-400/20 bg-blue-400/10 p-4">
+              <p className="font-semibold text-blue-200">Откуда перевести</p>
 
-              {availableCategories.map((categoryItem) => (
-                <option key={categoryItem.id} value={categoryItem.name}>
-                  {categoryItem.name}
-                </option>
-              ))}
-            </select>
+              <div className="grid grid-cols-2 gap-2 rounded-3xl bg-black/25 p-1">
+                <button
+                  type="button"
+                  onClick={() => setFromTargetType("account")}
+                  className={`rounded-2xl px-4 py-3 text-sm font-medium ${
+                    fromTargetType === "account"
+                      ? "bg-white text-neutral-950"
+                      : "text-slate-400"
+                  }`}
+                >
+                  Со счета
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setFromTargetType("goal")}
+                  className={`rounded-2xl px-4 py-3 text-sm font-medium ${
+                    fromTargetType === "goal"
+                      ? "bg-white text-neutral-950"
+                      : "text-slate-400"
+                  }`}
+                >
+                  С цели
+                </button>
+              </div>
+
+              {fromTargetType === "account" && (
+                <select
+                  value={account}
+                  onChange={(event) => setAccount(event.target.value)}
+                  className="w-full rounded-2xl border border-white/10 bg-black/25 p-4 text-white outline-none"
+                >
+                  {accounts.length === 0 && (
+                    <option value="">Нет счетов</option>
+                  )}
+
+                  {accounts.map((accountItem) => (
+                    <option key={accountItem.id} value={accountItem.name}>
+                      {accountItem.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              {fromTargetType === "goal" && (
+                <select
+                  value={goal}
+                  onChange={(event) => setGoal(event.target.value)}
+                  className="w-full rounded-2xl border border-white/10 bg-black/25 p-4 text-white outline-none"
+                >
+                  {goals.length === 0 && <option value="">Нет целей</option>}
+
+                  {goals.map((goalItem) => (
+                    <option key={goalItem.id} value={goalItem.name}>
+                      {goalItem.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              <p className="pt-2 font-semibold text-blue-200">
+                Куда перевести
+              </p>
+
+              <div className="grid grid-cols-2 gap-2 rounded-3xl bg-black/25 p-1">
+                <button
+                  type="button"
+                  onClick={() => setToTargetType("account")}
+                  className={`rounded-2xl px-4 py-3 text-sm font-medium ${
+                    toTargetType === "account"
+                      ? "bg-white text-neutral-950"
+                      : "text-slate-400"
+                  }`}
+                >
+                  На счет
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setToTargetType("goal")}
+                  className={`rounded-2xl px-4 py-3 text-sm font-medium ${
+                    toTargetType === "goal"
+                      ? "bg-white text-neutral-950"
+                      : "text-slate-400"
+                  }`}
+                >
+                  На цель
+                </button>
+              </div>
+
+              {toTargetType === "account" && (
+                <select
+                  value={toAccount}
+                  onChange={(event) => setToAccount(event.target.value)}
+                  className="w-full rounded-2xl border border-white/10 bg-black/25 p-4 text-white outline-none"
+                >
+                  {accounts.length === 0 && (
+                    <option value="">Нет счетов</option>
+                  )}
+
+                  {accounts.map((accountItem) => (
+                    <option key={accountItem.id} value={accountItem.name}>
+                      {accountItem.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              {toTargetType === "goal" && (
+                <select
+                  value={toGoal}
+                  onChange={(event) => setToGoal(event.target.value)}
+                  className="w-full rounded-2xl border border-white/10 bg-black/25 p-4 text-white outline-none"
+                >
+                  {goals.length === 0 && <option value="">Нет целей</option>}
+
+                  {goals.map((goalItem) => (
+                    <option key={goalItem.id} value={goalItem.name}>
+                      {goalItem.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </section>
           )}
 
           <input
@@ -331,7 +562,7 @@ export default function OperationsPage() {
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Поиск по сумме, заметке, счету или категории"
+            placeholder="Поиск по сумме, заметке, счету, цели или категории"
             className="w-full rounded-2xl border border-white/10 bg-black/25 p-4 text-white outline-none placeholder:text-slate-500 focus:border-emerald-400/60"
           />
 
@@ -394,9 +625,7 @@ export default function OperationsPage() {
                     <p className="truncate font-semibold">{operation.title}</p>
 
                     <p className="truncate text-sm text-slate-400">
-                      {operation.account}
-                      {operation.toAccount ? ` → ${operation.toAccount}` : ""} ·{" "}
-                      {operation.category}
+                      {getSourceLabel(operation)} · {operation.category}
                     </p>
 
                     <p className="mt-1 text-xs text-slate-600">
