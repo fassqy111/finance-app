@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useFinance } from "@/context/FinanceContext";
 import { formatMoney } from "@/lib/format";
+import type { Operation } from "@/types/finance";
 
 function getOperationSign(type: string) {
   if (type === "expense") return "−";
@@ -20,6 +21,24 @@ function getOperationIcon(type: string) {
   if (type === "expense") return "↓";
   if (type === "income") return "↑";
   return "↔";
+}
+
+function getOperationSource(operation: Operation) {
+  if (operation.type !== "transfer") {
+    return operation.account;
+  }
+
+  const from =
+    operation.fromTargetType === "goal"
+      ? `Цель: ${operation.goal ?? "Не выбрано"}`
+      : `Счет: ${operation.account}`;
+
+  const to =
+    operation.toTargetType === "goal"
+      ? `Цель: ${operation.toGoal ?? "Не выбрано"}`
+      : `Счет: ${operation.toAccount ?? "Не выбрано"}`;
+
+  return `${from} → ${to}`;
 }
 
 export default function HomePage() {
@@ -41,15 +60,23 @@ export default function HomePage() {
     .filter((operation) => operation.type === "income")
     .reduce((sum, operation) => sum + operation.amount, 0);
 
-  const totalBudgetLimit = budgets.reduce((sum, budget) => sum + budget.limit, 0);
-  const totalBudgetSpent = budgets.reduce((sum, budget) => sum + budget.spent, 0);
+  const totalBudgetLimit = budgets.reduce(
+    (sum, budget) => sum + budget.limit,
+    0
+  );
+
+  const totalBudgetSpent = budgets.reduce(
+    (sum, budget) => sum + budget.spent,
+    0
+  );
+
   const budgetRemaining = totalBudgetLimit - totalBudgetSpent;
 
   const lastOperations = operations.slice(0, 5);
 
   return (
     <main className="min-h-screen bg-[#080A12] text-white p-4 pb-24">
-      <section className="mx-auto max-w-md space-y-6">
+      <section className="mx-auto w-full max-w-md space-y-6 sm:max-w-lg md:max-w-2xl lg:max-w-4xl xl:max-w-5xl">
         <header className="pt-4">
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -97,7 +124,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section className="grid grid-cols-4 gap-3">
+        <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Link
             href="/operations"
             className="rounded-3xl border border-white/10 bg-white/[0.04] p-3 text-center hover:bg-white/[0.08]"
@@ -139,7 +166,7 @@ export default function HomePage() {
           </Link>
         </section>
 
-        <section className="grid grid-cols-3 gap-3">
+        <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-4">
             <p className="text-xs text-slate-400">Доходы</p>
             <p className="mt-2 text-lg font-bold text-emerald-300">
@@ -236,44 +263,46 @@ export default function HomePage() {
             </Link>
           </div>
 
-          {goals.length === 0 && (
-            <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-4 text-slate-400">
-              Целей пока нет
-            </div>
-          )}
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            {goals.length === 0 && (
+              <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-4 text-slate-400">
+                Целей пока нет
+              </div>
+            )}
 
-          {goals.map((goal) => {
-            const progress = Math.min(
-              100,
-              Math.round((goal.currentAmount / goal.targetAmount) * 100)
-            );
+            {goals.map((goal) => {
+              const progress = Math.min(
+                100,
+                Math.round((goal.currentAmount / goal.targetAmount) * 100)
+              );
 
-            return (
-              <div
-                key={goal.id}
-                className="rounded-3xl border border-white/10 bg-white/[0.04] p-4"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="font-semibold">{goal.name}</p>
-                    <p className="mt-1 text-sm text-slate-400">
-                      {formatMoney(goal.currentAmount)} из{" "}
-                      {formatMoney(goal.targetAmount)}
-                    </p>
+              return (
+                <div
+                  key={goal.id}
+                  className="rounded-3xl border border-white/10 bg-white/[0.04] p-4"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="font-semibold">{goal.name}</p>
+                      <p className="mt-1 text-sm text-slate-400">
+                        {formatMoney(goal.currentAmount)} из{" "}
+                        {formatMoney(goal.targetAmount)}
+                      </p>
+                    </div>
+
+                    <p className="font-bold text-emerald-300">{progress}%</p>
                   </div>
 
-                  <p className="font-bold text-emerald-300">{progress}%</p>
+                  <div className="mt-4 h-2 rounded-full bg-white/[0.06]">
+                    <div
+                      className="h-2 rounded-full bg-emerald-400"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
                 </div>
-
-                <div className="mt-4 h-2 rounded-full bg-white/[0.06]">
-                  <div
-                    className="h-2 rounded-full bg-emerald-400"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </section>
 
         <section className="space-y-3">
@@ -288,48 +317,50 @@ export default function HomePage() {
             </Link>
           </div>
 
-          {lastOperations.length === 0 && (
-            <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-4 text-slate-400">
-              Операций пока нет
-            </div>
-          )}
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+            {lastOperations.length === 0 && (
+              <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-4 text-slate-400">
+                Операций пока нет
+              </div>
+            )}
 
-          {lastOperations.map((operation) => (
-            <div
-              key={operation.id}
-              className="rounded-3xl border border-white/10 bg-white/[0.04] p-4"
-            >
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex min-w-0 items-center gap-3">
-                  <div
-                    className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/[0.06] text-xl ${getOperationColor(
+            {lastOperations.map((operation) => (
+              <div
+                key={operation.id}
+                className="rounded-3xl border border-white/10 bg-white/[0.04] p-4"
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div
+                      className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/[0.06] text-xl ${getOperationColor(
+                        operation.type
+                      )}`}
+                    >
+                      {getOperationIcon(operation.type)}
+                    </div>
+
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold">
+                        {operation.title}
+                      </p>
+                      <p className="truncate text-sm text-slate-400">
+                        {getOperationSource(operation)} · {operation.category}
+                      </p>
+                    </div>
+                  </div>
+
+                  <p
+                    className={`shrink-0 font-bold ${getOperationColor(
                       operation.type
                     )}`}
                   >
-                    {getOperationIcon(operation.type)}
-                  </div>
-
-                  <div className="min-w-0">
-                    <p className="truncate font-semibold">{operation.title}</p>
-                    <p className="truncate text-sm text-slate-400">
-                      {operation.account}
-                      {operation.toAccount ? ` → ${operation.toAccount}` : ""} ·{" "}
-                      {operation.category}
-                    </p>
-                  </div>
+                    {getOperationSign(operation.type)}
+                    {formatMoney(operation.amount)}
+                  </p>
                 </div>
-
-                <p
-                  className={`shrink-0 font-bold ${getOperationColor(
-                    operation.type
-                  )}`}
-                >
-                  {getOperationSign(operation.type)}
-                  {formatMoney(operation.amount)}
-                </p>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </section>
       </section>
     </main>
