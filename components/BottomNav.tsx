@@ -44,7 +44,7 @@ export default function BottomNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 px-3 pb-3">
-      <div className="mx-auto max-w-md rounded-[1.75rem] border border-white/10 bg-[#0B0E17]/90 p-2 text-white shadow-2xl shadow-black/50 backdrop-blur-xl">
+      <div className="mx-auto w-full max-w-md rounded-[1.75rem] border border-white/10 bg-[#0B0E17]/90 p-2 text-white shadow-2xl shadow-black/50 backdrop-blur-xl sm:max-w-lg md:max-w-2xl lg:max-w-3xl">
         <div className="grid grid-cols-5 gap-1">
           {navItems.map((item) => {
             const isActive = isActivePath(pathname, item.href);

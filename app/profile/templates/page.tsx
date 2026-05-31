@@ -309,7 +309,7 @@ export default function TemplatesPage() {
 
   return (
     <main className="min-h-screen bg-[#080A12] text-white p-4 pb-24">
-      <section className="mx-auto max-w-md space-y-6 md:max-w-2xl lg:max-w-4xl">
+      <section className="mx-auto w-full max-w-md space-y-6 sm:max-w-lg md:max-w-2xl lg:max-w-4xl xl:max-w-5xl">
         <header className="pt-4">
           <div className="flex items-start justify-between gap-4">
             <div>
