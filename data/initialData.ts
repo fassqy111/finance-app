@@ -3,146 +3,70 @@ import type { FinanceState } from "@/types/finance";
 export const initialFinanceState: FinanceState = {
   accounts: [
     {
-      id: "1",
-      name: "Тинькофф",
-      balance: 120000,
-      currency: "₽",
-    },
-    {
-      id: "2",
-      name: "Сбер",
-      balance: 45000,
-      currency: "₽",
-    },
-    {
-      id: "3",
-      name: "Наличные",
-      balance: 15000,
+      id: "account-1",
+      name: "Основной счет",
+      balance: 0,
       currency: "₽",
     },
   ],
 
-  goals: [
-    {
-      id: "1",
-      name: "Отпуск",
-      currentAmount: 50000,
-      targetAmount: 200000,
-      currency: "₽",
-    },
-  ],
+  goals: [],
 
-  operations: [
-    {
-      id: "1",
-      type: "expense",
-      title: "Продукты",
-      amount: 1200,
-      account: "Тинькофф",
-      category: "Еда",
-      note: "Покупка продуктов",
-      date: "2026-05-25",
-    },
-    {
-      id: "2",
-      type: "income",
-      title: "Зарплата",
-      amount: 95000,
-      account: "Сбер",
-      category: "Зарплата",
-      note: "Основная зарплата",
-      date: "2026-05-25",
-    },
-    {
-      id: "3",
-      type: "expense",
-      title: "Такси",
-      amount: 850,
-      account: "Тинькофф",
-      category: "Транспорт",
-      note: "Поездка вечером",
-      date: "2026-05-25",
-    },
-  ],
+  capitalSnapshots: [],
 
-  budgets: [
-    {
-      id: "1",
-      category: "Еда",
-      limit: 40000,
-      spent: 30000,
-      currency: "₽",
-    },
-    {
-      id: "2",
-      category: "Транспорт",
-      limit: 10000,
-      spent: 4500,
-      currency: "₽",
-    },
-  ],
+  operations: [],
+
+  budgets: [],
 
   categories: [
     {
-      id: "1",
+      id: "category-expense-1",
       name: "Еда",
       type: "expense",
     },
     {
-      id: "2",
+      id: "category-expense-2",
       name: "Транспорт",
       type: "expense",
     },
     {
-      id: "3",
+      id: "category-expense-3",
       name: "Развлечения",
       type: "expense",
     },
     {
-      id: "4",
+      id: "category-expense-4",
+      name: "Здоровье",
+      type: "expense",
+    },
+    {
+      id: "category-expense-5",
+      name: "Подписки",
+      type: "expense",
+    },
+    {
+      id: "category-expense-6",
+      name: "Жилье",
+      type: "expense",
+    },
+    {
+      id: "category-income-1",
       name: "Зарплата",
       type: "income",
     },
     {
-      id: "5",
+      id: "category-income-2",
       name: "Подарки",
+      type: "income",
+    },
+    {
+      id: "category-income-3",
+      name: "Возврат",
       type: "income",
     },
   ],
 
-  recurringTemplates: [
-    {
-      id: "1",
-      type: "income",
-      title: "Зарплата",
-      amount: 95000,
-      fromAccount: "Сбер",
-      category: "Зарплата",
-      frequency: "monthly",
-      dayOfMonth: 5,
-    },
-    {
-      id: "2",
-      type: "expense",
-      title: "Подписка",
-      amount: 499,
-      fromAccount: "Тинькофф",
-      category: "Развлечения",
-      frequency: "monthly",
-      dayOfMonth: 15,
-    },
-    {
-      id: "3",
-      type: "transfer",
-      title: "Накопления",
-      amount: 10000,
-      fromAccount: "Тинькофф",
-      toAccount: "Сбер",
-      category: "Перевод",
-      frequency: "monthly",
-      dayOfMonth: 10,
-    },
-  ],
+  recurringTemplates: [],
 
   trashItems: [],
 };

@@ -16,6 +16,7 @@ import { getTodayDate } from "@/lib/format";
 import type {
   Account,
   Budget,
+  CapitalSnapshot,
   Category,
   FinanceState,
   Goal,
@@ -30,13 +31,19 @@ type FinanceContextValue = FinanceState & {
   addAccount: (account: Omit<Account, "id">) => Promise<void>;
   updateAccount: (account: Account) => Promise<void>;
   deleteAccount: (
-  id: string,
-  mode?: "keep_operations" | "delete_operations"
-) => Promise<void>;
+    id: string,
+    mode?: "keep_operations" | "delete_operations"
+  ) => Promise<void>;
 
   addGoal: (goal: Omit<Goal, "id">) => Promise<void>;
   updateGoal: (goal: Goal) => Promise<void>;
   deleteGoal: (id: string) => Promise<void>;
+
+  addCapitalSnapshot: (
+    snapshot: Omit<CapitalSnapshot, "id">
+  ) => Promise<void>;
+  updateCapitalSnapshot: (snapshot: CapitalSnapshot) => Promise<void>;
+  deleteCapitalSnapshot: (id: string) => Promise<void>;
 
   addOperation: (operation: Omit<Operation, "id">) => Promise<void>;
   updateOperation: (operation: Operation) => Promise<void>;
@@ -66,6 +73,7 @@ const FinanceContext = createContext<FinanceContextValue | null>(null);
 const emptyState: FinanceState = {
   accounts: [],
   goals: [],
+  capitalSnapshots: [],
   operations: [],
   budgets: [],
   categories: [],
@@ -101,6 +109,16 @@ function mapGoal(row: any): Goal {
     currentAmount: Number(row.current_amount ?? 0),
     targetAmount: Number(row.target_amount ?? 0),
     currency: row.currency === "RUB" ? "₽" : row.currency ?? "₽",
+  };
+}
+
+function mapCapitalSnapshot(row: any): CapitalSnapshot {
+  return {
+    id: row.id,
+    month: row.month,
+    capitalAmount: Number(row.capital_amount ?? 0),
+    netIncomeAmount: Number(row.net_income_amount ?? 0),
+    note: row.note ?? "",
   };
 }
 
@@ -407,6 +425,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     const [
       accountsResult,
       goalsResult,
+      capitalSnapshotsResult,
       categoriesResult,
       operationsResult,
       budgetsResult,
@@ -417,6 +436,9 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       }),
       supabase.from("goals").select("*").order("created_at", {
         ascending: false,
+      }),
+      supabase.from("capital_snapshots").select("*").order("month", {
+        ascending: true,
       }),
       supabase.from("categories").select("*").order("created_at", {
         ascending: false,
@@ -434,6 +456,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
 
     const allAccountRows = accountsResult.data ?? [];
     const allGoalRows = goalsResult.data ?? [];
+    const allCapitalSnapshotRows = capitalSnapshotsResult.data ?? [];
     const allCategoryRows = categoriesResult.data ?? [];
     const allOperationRows = operationsResult.data ?? [];
     const allBudgetRows = budgetsResult.data ?? [];
@@ -450,6 +473,10 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     const activeGoals = allGoalRows
       .filter((row: any) => !row.is_deleted)
       .map(mapGoal);
+
+    const activeCapitalSnapshots = allCapitalSnapshotRows
+      .filter((row: any) => !row.is_deleted)
+      .map(mapCapitalSnapshot);
 
     const activeCategories = allCategoryRows
       .filter((row: any) => !row.is_deleted)
@@ -556,6 +583,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     setState({
       accounts: activeAccounts,
       goals: activeGoals,
+      capitalSnapshots: activeCapitalSnapshots,
       operations: activeOperations,
       budgets: activeBudgets,
       categories: activeCategories,
@@ -634,60 +662,64 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     },
 
     async deleteAccount(id, mode = "keep_operations") {
-  if (mode === "delete_operations") {
-    const { data: relatedOperations, error: operationsError } = await supabase
-      .from("operations")
-      .select("*")
-      .or(`account_id.eq.${id},to_account_id.eq.${id}`)
-      .eq("is_deleted", false);
+      if (mode === "delete_operations") {
+        const { data: relatedOperations, error: operationsError } =
+          await supabase
+            .from("operations")
+            .select("*")
+            .or(`account_id.eq.${id},to_account_id.eq.${id}`)
+            .eq("is_deleted", false);
 
-    if (operationsError) {
-      alert(operationsError.message);
-      console.error("Ошибка чтения операций счета:", operationsError);
-      return;
-    }
+        if (operationsError) {
+          alert(operationsError.message);
+          console.error("Ошибка чтения операций счета:", operationsError);
+          return;
+        }
 
-    for (const operation of relatedOperations ?? []) {
-      await applyOperationBalance(operation, -1);
-    }
+        for (const operation of relatedOperations ?? []) {
+          await applyOperationBalance(operation, -1);
+        }
 
-    const operationIds = (relatedOperations ?? []).map(
-      (operation) => operation.id
-    );
+        const operationIds = (relatedOperations ?? []).map(
+          (operation) => operation.id
+        );
 
-    if (operationIds.length > 0) {
-      const { error: deleteOperationsError } = await supabase
-        .from("operations")
+        if (operationIds.length > 0) {
+          const { error: deleteOperationsError } = await supabase
+            .from("operations")
+            .update({
+              is_deleted: true,
+              deleted_at: new Date().toISOString(),
+            })
+            .in("id", operationIds);
+
+          if (deleteOperationsError) {
+            alert(deleteOperationsError.message);
+            console.error(
+              "Ошибка удаления операций счета:",
+              deleteOperationsError
+            );
+            return;
+          }
+        }
+      }
+
+      const { error } = await supabase
+        .from("accounts")
         .update({
           is_deleted: true,
           deleted_at: new Date().toISOString(),
         })
-        .in("id", operationIds);
+        .eq("id", id);
 
-      if (deleteOperationsError) {
-        alert(deleteOperationsError.message);
-        console.error("Ошибка удаления операций счета:", deleteOperationsError);
+      if (error) {
+        alert(error.message);
+        console.error("Ошибка удаления счета:", error);
         return;
       }
-    }
-  }
 
-  const { error } = await supabase
-    .from("accounts")
-    .update({
-      is_deleted: true,
-      deleted_at: new Date().toISOString(),
-    })
-    .eq("id", id);
-
-  if (error) {
-    alert(error.message);
-    console.error("Ошибка удаления счета:", error);
-    return;
-  }
-
-  await loadData();
-},
+      await loadData();
+    },
 
     async addGoal(goal) {
       const userId = await getCurrentUserId();
@@ -743,6 +775,73 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       if (error) {
         alert(error.message);
         console.error("Ошибка удаления цели:", error);
+        return;
+      }
+
+      await loadData();
+    },
+
+    async addCapitalSnapshot(snapshot) {
+      const userId = await getCurrentUserId();
+
+      if (!userId) return;
+
+      const { error } = await supabase.from("capital_snapshots").upsert(
+        {
+          user_id: userId,
+          month: snapshot.month,
+          capital_amount: snapshot.capitalAmount,
+          net_income_amount: snapshot.netIncomeAmount,
+          note: snapshot.note,
+          is_deleted: false,
+          deleted_at: null,
+        },
+        {
+          onConflict: "user_id,month",
+        }
+      );
+
+      if (error) {
+        alert(error.message);
+        console.error("Ошибка создания снимка капитала:", error);
+        return;
+      }
+
+      await loadData();
+    },
+
+    async updateCapitalSnapshot(snapshot) {
+      const { error } = await supabase
+        .from("capital_snapshots")
+        .update({
+          month: snapshot.month,
+          capital_amount: snapshot.capitalAmount,
+          net_income_amount: snapshot.netIncomeAmount,
+          note: snapshot.note,
+        })
+        .eq("id", snapshot.id);
+
+      if (error) {
+        alert(error.message);
+        console.error("Ошибка обновления снимка капитала:", error);
+        return;
+      }
+
+      await loadData();
+    },
+
+    async deleteCapitalSnapshot(id) {
+      const { error } = await supabase
+        .from("capital_snapshots")
+        .update({
+          is_deleted: true,
+          deleted_at: new Date().toISOString(),
+        })
+        .eq("id", id);
+
+      if (error) {
+        alert(error.message);
+        console.error("Ошибка удаления снимка капитала:", error);
         return;
       }
 

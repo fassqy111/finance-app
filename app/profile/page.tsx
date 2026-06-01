@@ -48,7 +48,15 @@ const settingsItems = [
     icon: "⇅",
     color: "bg-cyan-400/15 text-cyan-300",
   },
-  
+
+  {
+  href: "/profile/capital",
+  title: "Капитал по месяцам",
+  description: "История капитала и чистого дохода",
+  icon: "↗",
+  color: "bg-emerald-400/15 text-emerald-300",
+},
+
   {
     href: "/profile/accounts",
     title: "Управление счетами",

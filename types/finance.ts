@@ -13,6 +13,14 @@ export type Goal = {
   currency: string;
 };
 
+export type CapitalSnapshot = {
+  id: string;
+  month: string;
+  capitalAmount: number;
+  netIncomeAmount: number;
+  note?: string;
+};
+
 export type OperationType = "income" | "expense" | "transfer";
 
 export type TransferTargetType = "account" | "goal";
@@ -96,6 +104,7 @@ export type TrashItem = {
 export type FinanceState = {
   accounts: Account[];
   goals: Goal[];
+  capitalSnapshots: CapitalSnapshot[];
   operations: Operation[];
   budgets: Budget[];
   categories: Category[];
