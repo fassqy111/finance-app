@@ -468,3 +468,179 @@ html.theme-light .capital-chart-scroll::-webkit-scrollbar-track,
 html[data-theme="light"] .capital-chart-scroll::-webkit-scrollbar-track {
   background: rgba(15, 23, 42, 0.08);
 }
+
+/* ===== LIGHT THEME FINAL CONTRAST FIX ===== */
+
+html.theme-light,
+html[data-theme="light"] {
+  background: #eef3f8;
+}
+
+html.theme-light body,
+html[data-theme="light"] body,
+html.theme-light main,
+html[data-theme="light"] main {
+  background: #eef3f8 !important;
+  color: #0f172a !important;
+}
+
+/* Основной текст */
+html.theme-light .text-white,
+html[data-theme="light"] .text-white {
+  color: #0f172a !important;
+}
+
+html.theme-light .text-slate-300,
+html[data-theme="light"] .text-slate-300 {
+  color: #334155 !important;
+}
+
+html.theme-light .text-slate-400,
+html[data-theme="light"] .text-slate-400 {
+  color: #475569 !important;
+}
+
+html.theme-light .text-slate-500,
+html[data-theme="light"] .text-slate-500 {
+  color: #64748b !important;
+}
+
+/* Заголовки и жирный текст делаем читаемыми */
+html.theme-light h1,
+html.theme-light h2,
+html.theme-light h3,
+html.theme-light .font-bold,
+html.theme-light .font-semibold,
+html[data-theme="light"] h1,
+html[data-theme="light"] h2,
+html[data-theme="light"] h3,
+html[data-theme="light"] .font-bold,
+html[data-theme="light"] .font-semibold {
+  color: #0f172a;
+}
+
+/* Карточки */
+html.theme-light .bg-white\/\[0\.03\],
+html.theme-light .bg-white\/\[0\.04\],
+html.theme-light .bg-white\/\[0\.06\],
+html.theme-light .bg-white\/\[0\.08\],
+html[data-theme="light"] .bg-white\/\[0\.03\],
+html[data-theme="light"] .bg-white\/\[0\.04\],
+html[data-theme="light"] .bg-white\/\[0\.06\],
+html[data-theme="light"] .bg-white\/\[0\.08\] {
+  background-color: rgba(255, 255, 255, 0.88) !important;
+}
+
+/* Внутренние блоки */
+html.theme-light .bg-black\/20,
+html.theme-light .bg-black\/25,
+html.theme-light .bg-black\/30,
+html[data-theme="light"] .bg-black\/20,
+html[data-theme="light"] .bg-black\/25,
+html[data-theme="light"] .bg-black\/30 {
+  background-color: rgba(255, 255, 255, 0.72) !important;
+}
+
+/* Рамки */
+html.theme-light .border-white\/10,
+html.theme-light .border-white\/20,
+html[data-theme="light"] .border-white\/10,
+html[data-theme="light"] .border-white\/20 {
+  border-color: rgba(15, 23, 42, 0.12) !important;
+}
+
+/* Инпуты */
+html.theme-light input,
+html.theme-light textarea,
+html.theme-light select,
+html[data-theme="light"] input,
+html[data-theme="light"] textarea,
+html[data-theme="light"] select {
+  background-color: rgba(255, 255, 255, 0.92) !important;
+  color: #0f172a !important;
+  border-color: rgba(15, 23, 42, 0.14) !important;
+}
+
+html.theme-light input::placeholder,
+html.theme-light textarea::placeholder,
+html[data-theme="light"] input::placeholder,
+html[data-theme="light"] textarea::placeholder {
+  color: #64748b !important;
+}
+
+/* Убираем слишком черные основные кнопки в светлой теме */
+html.theme-light button.bg-white,
+html.theme-light a.bg-white,
+html[data-theme="light"] button.bg-white,
+html[data-theme="light"] a.bg-white {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid rgba(15, 23, 42, 0.12) !important;
+}
+
+html.theme-light button.bg-white:hover,
+html.theme-light a.bg-white:hover,
+html[data-theme="light"] button.bg-white:hover,
+html[data-theme="light"] a.bg-white:hover {
+  background-color: #f8fafc !important;
+}
+
+/* Черные кнопки типа "Сохранить", "Управлять лимитами" делаем мягче */
+html.theme-light .bg-\[\#080A12\],
+html.theme-light .bg-slate-950,
+html.theme-light .bg-neutral-950,
+html[data-theme="light"] .bg-\[\#080A12\],
+html[data-theme="light"] .bg-slate-950,
+html[data-theme="light"] .bg-neutral-950 {
+  background-color: #dbeafe !important;
+  color: #1e3a8a !important;
+  border: 1px solid rgba(59, 130, 246, 0.2) !important;
+}
+
+/* Нижняя навигация */
+html.theme-light nav,
+html[data-theme="light"] nav {
+  background-color: rgba(255, 255, 255, 0.94) !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.16) !important;
+}
+
+html.theme-light nav a,
+html.theme-light nav button,
+html[data-theme="light"] nav a,
+html[data-theme="light"] nav button {
+  color: #475569 !important;
+}
+
+html.theme-light nav svg,
+html[data-theme="light"] nav svg {
+  color: currentColor !important;
+  stroke: currentColor !important;
+}
+
+/* Активная кнопка навигации */
+html.theme-light nav a[class*="bg-emerald"],
+html.theme-light nav a[class*="bg-blue"],
+html.theme-light nav a[class*="bg-white"],
+html[data-theme="light"] nav a[class*="bg-emerald"],
+html[data-theme="light"] nav a[class*="bg-blue"],
+html[data-theme="light"] nav a[class*="bg-white"] {
+  background-color: #dbeafe !important;
+  color: #1e3a8a !important;
+}
+
+/* Иконки */
+html.theme-light svg,
+html[data-theme="light"] svg {
+  color: currentColor !important;
+  stroke: currentColor !important;
+}
+
+html.theme-light .opacity-40,
+html.theme-light .opacity-50,
+html.theme-light .opacity-60,
+html[data-theme="light"] .opacity-40,
+html[data-theme="light"] .opacity-50,
+html[data-theme="light"] .opacity-60 {
+  opacity: 0.9 !important;
+}

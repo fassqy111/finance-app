@@ -54,6 +54,16 @@ function getSnapshotMonthLabel(date: string) {
   return `${monthNames[parsedDate.getMonth()]} ${parsedDate.getFullYear()}`;
 }
 
+function getShortSnapshotMonthLabel(date: string) {
+  const parsedDate = new Date(date);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return date;
+  }
+
+  return monthNames[parsedDate.getMonth()].slice(0, 3).toUpperCase();
+}
+
 function getOperationSource(operation: Operation) {
   if (operation.type !== "transfer") {
     return operation.account || "Без счета";
@@ -97,12 +107,6 @@ function getOperationBg(type: OperationType) {
   return "bg-blue-400";
 }
 
-function getBarHeight(value: number, max: number) {
-  if (!max) return 8;
-
-  return Math.max(10, Math.round((Math.abs(value) / max) * 108));
-}
-
 function getSnapshotChange(
   snapshot: CapitalSnapshot,
   previousSnapshot?: CapitalSnapshot
@@ -112,7 +116,30 @@ function getSnapshotChange(
   return snapshot.capitalAmount - previousSnapshot.capitalAmount;
 }
 
-function CapitalBarsChart({ snapshots }: { snapshots: CapitalSnapshot[] }) {
+function formatChartMoney(value: number) {
+  return new Intl.NumberFormat("ru-RU", {
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function getLinePath(points: { x: number; y: number }[]) {
+  if (points.length === 0) return "";
+
+  return points
+    .map((point, index) => {
+      if (index === 0) {
+        return `M ${point.x} ${point.y}`;
+      }
+
+      const previous = points[index - 1];
+      const controlX = (previous.x + point.x) / 2;
+
+      return `C ${controlX} ${previous.y}, ${controlX} ${point.y}, ${point.x} ${point.y}`;
+    })
+    .join(" ");
+}
+
+function CapitalLineChart({ snapshots }: { snapshots: CapitalSnapshot[] }) {
   const sortedSnapshots = [...snapshots].sort((a, b) =>
     a.month.localeCompare(b.month)
   );
@@ -126,9 +153,24 @@ function CapitalBarsChart({ snapshots }: { snapshots: CapitalSnapshot[] }) {
     );
   }
 
+  const width = Math.max(1280, sortedSnapshots.length * 125);
+  const height = 460;
+
+  const paddingX = 70;
+  const capitalTop = 42;
+  const capitalBottom = 190;
+  const incomeTop = 235;
+  const incomeBottom = 370;
+  const monthY = 425;
+
   const maxCapital = Math.max(
     ...sortedSnapshots.map((snapshot) => snapshot.capitalAmount),
     1
+  );
+
+  const minCapital = Math.min(
+    ...sortedSnapshots.map((snapshot) => snapshot.capitalAmount),
+    0
   );
 
   const maxIncomeAbs = Math.max(
@@ -136,62 +178,174 @@ function CapitalBarsChart({ snapshots }: { snapshots: CapitalSnapshot[] }) {
     1
   );
 
+  function getX(index: number) {
+    if (sortedSnapshots.length === 1) {
+      return width / 2;
+    }
+
+    return (
+      paddingX +
+      (index * (width - paddingX * 2)) / (sortedSnapshots.length - 1)
+    );
+  }
+
+  function getCapitalY(value: number) {
+    const range = maxCapital - minCapital || 1;
+
+    return (
+      capitalTop +
+      ((maxCapital - value) / range) * (capitalBottom - capitalTop)
+    );
+  }
+
+  function getIncomeY(value: number) {
+    const zeroY = (incomeTop + incomeBottom) / 2;
+    const maxHeight = (incomeBottom - incomeTop) / 2;
+
+    return zeroY - (value / maxIncomeAbs) * maxHeight;
+  }
+
+  const capitalPoints = sortedSnapshots.map((snapshot, index) => ({
+    x: getX(index),
+    y: getCapitalY(snapshot.capitalAmount),
+  }));
+
+  const incomePoints = sortedSnapshots.map((snapshot, index) => ({
+    x: getX(index),
+    y: getIncomeY(snapshot.netIncomeAmount),
+  }));
+
+  const incomeZeroY = getIncomeY(0);
+
   return (
-    <div className="capital-chart-scroll overflow-x-auto pb-2">
-      <div className="flex min-w-max items-end gap-4">
-        {sortedSnapshots.map((snapshot) => {
-          const capitalHeight = getBarHeight(snapshot.capitalAmount, maxCapital);
-          const incomeHeight = getBarHeight(
-            snapshot.netIncomeAmount,
-            maxIncomeAbs
-          );
+    <div className="capital-chart-scroll overflow-x-auto rounded-[2rem] bg-black/20 p-4">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        width={width}
+        height={height}
+        className="block"
+      >
+        <defs>
+          <linearGradient
+            id="analyticsCapitalGradient"
+            x1="0"
+            x2="1"
+            y1="0"
+            y2="0"
+          >
+            <stop offset="0%" stopColor="#10b981" />
+            <stop offset="100%" stopColor="#6ee7b7" />
+          </linearGradient>
+
+          <linearGradient
+            id="analyticsIncomeGradient"
+            x1="0"
+            x2="1"
+            y1="0"
+            y2="0"
+          >
+            <stop offset="0%" stopColor="#3b82f6" />
+            <stop offset="100%" stopColor="#93c5fd" />
+          </linearGradient>
+        </defs>
+
+        <line
+          x1={paddingX}
+          y1={incomeZeroY}
+          x2={width - paddingX}
+          y2={incomeZeroY}
+          stroke="rgba(148, 163, 184, 0.16)"
+          strokeWidth="1"
+        />
+
+        <path
+          d={getLinePath(capitalPoints)}
+          fill="none"
+          stroke="url(#analyticsCapitalGradient)"
+          strokeWidth="4"
+          strokeLinecap="round"
+        />
+
+        <path
+          d={getLinePath(incomePoints)}
+          fill="none"
+          stroke="url(#analyticsIncomeGradient)"
+          strokeWidth="4"
+          strokeLinecap="round"
+        />
+
+        {capitalPoints.map((point, index) => {
+          const snapshot = sortedSnapshots[index];
 
           return (
-            <div
-              key={snapshot.id}
-              className="flex w-32 shrink-0 flex-col items-center gap-3"
-            >
-              <div className="flex h-44 w-full items-end justify-center gap-3 rounded-[2rem] bg-black/20 px-4 py-4">
-                <div className="flex flex-col items-center gap-2">
-                  <p className="whitespace-nowrap text-xs font-bold text-emerald-300">
-                    {formatMoney(snapshot.capitalAmount)}
-                  </p>
+            <g key={`capital-${snapshot.id}`}>
+              <circle
+                cx={point.x}
+                cy={point.y}
+                r="5"
+                fill="#34d399"
+                stroke="#080A12"
+                strokeWidth="3"
+              />
 
-                  <div
-                    className="w-8 rounded-t-full bg-emerald-400"
-                    style={{ height: `${capitalHeight}px` }}
-                  />
-                </div>
-
-                <div className="flex flex-col items-center gap-2">
-                  <p
-                    className={`whitespace-nowrap text-xs font-bold ${
-                      snapshot.netIncomeAmount >= 0
-                        ? "text-blue-300"
-                        : "text-rose-300"
-                    }`}
-                  >
-                    {formatMoney(snapshot.netIncomeAmount)}
-                  </p>
-
-                  <div
-                    className={`w-8 rounded-t-full ${
-                      snapshot.netIncomeAmount >= 0
-                        ? "bg-blue-400"
-                        : "bg-rose-400"
-                    }`}
-                    style={{ height: `${incomeHeight}px` }}
-                  />
-                </div>
-              </div>
-
-              <p className="text-center text-sm font-medium text-slate-500">
-                {getSnapshotMonthLabel(snapshot.month)}
-              </p>
-            </div>
+              <text
+                x={point.x}
+                y={point.y - 13}
+                textAnchor="middle"
+                fontSize="13"
+                fontWeight="700"
+                fill="#10b981"
+              >
+                {formatChartMoney(snapshot.capitalAmount)} ₽
+              </text>
+            </g>
           );
         })}
-      </div>
+
+        {incomePoints.map((point, index) => {
+          const snapshot = sortedSnapshots[index];
+          const labelOffset = snapshot.netIncomeAmount >= 0 ? -13 : 24;
+
+          return (
+            <g key={`income-${snapshot.id}`}>
+              <circle
+                cx={point.x}
+                cy={point.y}
+                r="5"
+                fill={snapshot.netIncomeAmount >= 0 ? "#60a5fa" : "#fb7185"}
+                stroke="#080A12"
+                strokeWidth="3"
+              />
+
+              <text
+                x={point.x}
+                y={point.y + labelOffset}
+                textAnchor="middle"
+                fontSize="13"
+                fontWeight="700"
+                fill={snapshot.netIncomeAmount >= 0 ? "#3b82f6" : "#e11d48"}
+              >
+                {formatChartMoney(snapshot.netIncomeAmount)} ₽
+              </text>
+            </g>
+          );
+        })}
+
+        {sortedSnapshots.map((snapshot, index) => (
+          <text
+            key={`month-${snapshot.id}`}
+            x={getX(index)}
+            y={monthY}
+            textAnchor="middle"
+            fontSize="14"
+            fontWeight="800"
+            fill="#64748b"
+            letterSpacing="1"
+          >
+            {getShortSnapshotMonthLabel(snapshot.month)}
+          </text>
+        ))}
+      </svg>
     </div>
   );
 }
@@ -219,7 +373,6 @@ export default function AnalyticsPage() {
     sortedCapitalSnapshots[sortedCapitalSnapshots.length - 2];
 
   const latestCapitalFromSnapshots = latestSnapshot?.capitalAmount ?? 0;
-
   const latestNetIncomeFromSnapshots = latestSnapshot?.netIncomeAmount ?? 0;
 
   const latestCapitalChange =
@@ -454,6 +607,7 @@ export default function AnalyticsPage() {
                   ? "Исторический капитал"
                   : "Текущий капитал"}
               </p>
+
               <p className="mt-2 text-4xl font-bold tracking-tight">
                 {formatMoney(capitalTotal)}
               </p>
@@ -578,7 +732,7 @@ export default function AnalyticsPage() {
               <h2 className="text-xl font-semibold">История капитала</h2>
               <p className="mt-1 text-sm text-slate-500">
                 Зеленый — капитал, синий — чистый доход, красный —
-                отрицательный чистый доход
+                отрицательный чистый доход.
               </p>
             </div>
 
@@ -626,7 +780,7 @@ export default function AnalyticsPage() {
                   </div>
                 </div>
 
-                <CapitalBarsChart snapshots={sortedCapitalSnapshots} />
+                <CapitalLineChart snapshots={sortedCapitalSnapshots} />
 
                 <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-2">
                   {sortedCapitalSnapshots.map((snapshot, index) => {
@@ -844,6 +998,7 @@ export default function AnalyticsPage() {
                           {formatMoney(item.income)}
                         </span>
                       </div>
+
                       <div className="h-2 rounded-full bg-white/[0.06]">
                         <div
                           className="h-2 rounded-full bg-emerald-400"
@@ -863,6 +1018,7 @@ export default function AnalyticsPage() {
                           {formatMoney(item.expense)}
                         </span>
                       </div>
+
                       <div className="h-2 rounded-full bg-white/[0.06]">
                         <div
                           className="h-2 rounded-full bg-rose-400"
@@ -883,6 +1039,7 @@ export default function AnalyticsPage() {
                             {formatMoney(item.transfer)}
                           </span>
                         </div>
+
                         <div className="h-2 rounded-full bg-white/[0.06]">
                           <div
                             className="h-2 rounded-full bg-blue-400"
@@ -1213,6 +1370,7 @@ export default function AnalyticsPage() {
                     >
                       {formatMoney(operation.amount)}
                     </p>
+
                     <div
                       className={`ml-auto mt-2 h-2 w-12 rounded-full ${getOperationBg(
                         operation.type
