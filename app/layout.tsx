@@ -25,15 +25,17 @@ export default function RootLayout({
     <html lang="ru" suppressHydrationWarning>
       <body>
         <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              try {
-                const theme = localStorage.getItem("theme") || "dark";
-                document.documentElement.dataset.theme = theme;
-              } catch {}
-            `,
-          }}
-        />
+  dangerouslySetInnerHTML={{
+    __html: `
+      try {
+        const theme = localStorage.getItem("theme") || "dark";
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.classList.remove("theme-dark", "theme-light");
+        document.documentElement.classList.add("theme-" + theme);
+      } catch {}
+    `,
+  }}
+/>
 
         <FinanceProvider>
           <AppShell>{children}</AppShell>

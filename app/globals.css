@@ -264,3 +264,207 @@ html[data-theme="light"] .opacity-50,
 html[data-theme="light"] .opacity-60 {
   opacity: 0.85 !important;
 }
+
+/* ===== REAL LIGHT THEME OVERRIDES ===== */
+
+html.theme-light,
+html[data-theme="light"] {
+  color-scheme: light;
+  background: #eef3f8;
+}
+
+html.theme-light body,
+html[data-theme="light"] body {
+  background: #eef3f8 !important;
+  color: #0f172a !important;
+}
+
+/* Главный фон всех страниц */
+html.theme-light main,
+html[data-theme="light"] main {
+  background: #eef3f8 !important;
+  color: #0f172a !important;
+}
+
+/* Принудительно убираем темный фон у элементов с жесткими темными классами */
+html.theme-light .bg-\[\#080A12\],
+html[data-theme="light"] .bg-\[\#080A12\],
+html.theme-light .bg-slate-950,
+html[data-theme="light"] .bg-slate-950,
+html.theme-light .bg-neutral-950,
+html[data-theme="light"] .bg-neutral-950,
+html.theme-light .bg-black,
+html[data-theme="light"] .bg-black {
+  background-color: #eef3f8 !important;
+  color: #0f172a !important;
+}
+
+/* Основные карточки */
+html.theme-light .bg-white\/\[0\.03\],
+html.theme-light .bg-white\/\[0\.04\],
+html.theme-light .bg-white\/\[0\.06\],
+html.theme-light .bg-white\/\[0\.08\],
+html[data-theme="light"] .bg-white\/\[0\.03\],
+html[data-theme="light"] .bg-white\/\[0\.04\],
+html[data-theme="light"] .bg-white\/\[0\.06\],
+html[data-theme="light"] .bg-white\/\[0\.08\] {
+  background-color: rgba(255, 255, 255, 0.82) !important;
+}
+
+/* Внутренние блоки */
+html.theme-light .bg-black\/20,
+html.theme-light .bg-black\/25,
+html.theme-light .bg-black\/30,
+html[data-theme="light"] .bg-black\/20,
+html[data-theme="light"] .bg-black\/25,
+html[data-theme="light"] .bg-black\/30 {
+  background-color: rgba(255, 255, 255, 0.72) !important;
+}
+
+/* Рамки */
+html.theme-light .border-white\/10,
+html.theme-light .border-white\/20,
+html[data-theme="light"] .border-white\/10,
+html[data-theme="light"] .border-white\/20 {
+  border-color: rgba(15, 23, 42, 0.12) !important;
+}
+
+/* Текст */
+html.theme-light .text-white,
+html[data-theme="light"] .text-white {
+  color: #0f172a !important;
+}
+
+html.theme-light .text-slate-300,
+html[data-theme="light"] .text-slate-300 {
+  color: #475569 !important;
+}
+
+html.theme-light .text-slate-400,
+html.theme-light .text-slate-500,
+html[data-theme="light"] .text-slate-400,
+html[data-theme="light"] .text-slate-500 {
+  color: #64748b !important;
+}
+
+/* Инпуты */
+html.theme-light input,
+html.theme-light textarea,
+html.theme-light select,
+html[data-theme="light"] input,
+html[data-theme="light"] textarea,
+html[data-theme="light"] select {
+  background-color: rgba(255, 255, 255, 0.92) !important;
+  color: #0f172a !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
+}
+
+html.theme-light input::placeholder,
+html.theme-light textarea::placeholder,
+html[data-theme="light"] input::placeholder,
+html[data-theme="light"] textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* Белые кнопки в светлой теме делаем темными */
+html.theme-light button.bg-white,
+html.theme-light a.bg-white,
+html[data-theme="light"] button.bg-white,
+html[data-theme="light"] a.bg-white {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+}
+
+/* Нижняя навигация */
+html.theme-light nav,
+html[data-theme="light"] nav {
+  background-color: rgba(255, 255, 255, 0.92) !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.18) !important;
+}
+
+/* Если нижняя панель сделана не через nav, а через fixed bottom */
+html.theme-light .fixed.bottom-0,
+html.theme-light .fixed.bottom-4,
+html.theme-light .fixed.bottom-5,
+html.theme-light .fixed.bottom-6,
+html[data-theme="light"] .fixed.bottom-0,
+html[data-theme="light"] .fixed.bottom-4,
+html[data-theme="light"] .fixed.bottom-5,
+html[data-theme="light"] .fixed.bottom-6 {
+  background-color: rgba(255, 255, 255, 0.92) !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.18) !important;
+}
+
+/* Кнопки нижней навигации */
+html.theme-light nav a,
+html.theme-light nav button,
+html[data-theme="light"] nav a,
+html[data-theme="light"] nav button {
+  color: #64748b !important;
+}
+
+/* Активная кнопка нижней навигации */
+html.theme-light nav a[aria-current="page"],
+html.theme-light nav a.bg-emerald-400\/15,
+html.theme-light nav a.bg-blue-400\/15,
+html.theme-light nav a.bg-white,
+html[data-theme="light"] nav a[aria-current="page"],
+html[data-theme="light"] nav a.bg-emerald-400\/15,
+html[data-theme="light"] nav a.bg-blue-400\/15,
+html[data-theme="light"] nav a.bg-white {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+}
+
+/* SVG иконки */
+html.theme-light svg,
+html[data-theme="light"] svg {
+  color: currentColor !important;
+  stroke: currentColor !important;
+}
+
+/* Бледные иконки делаем видимее */
+html.theme-light .opacity-40,
+html.theme-light .opacity-50,
+html.theme-light .opacity-60,
+html[data-theme="light"] .opacity-40,
+html[data-theme="light"] .opacity-50,
+html[data-theme="light"] .opacity-60 {
+  opacity: 0.9 !important;
+}
+
+/* Скролл графика капитала */
+.capital-chart-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(52, 211, 153, 0.7) rgba(255, 255, 255, 0.08);
+}
+
+.capital-chart-scroll::-webkit-scrollbar {
+  height: 10px;
+}
+
+.capital-chart-scroll::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.capital-chart-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: linear-gradient(90deg, #10b981, #60a5fa);
+}
+
+.capital-chart-scroll::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(90deg, #34d399, #93c5fd);
+}
+
+html.theme-light .capital-chart-scroll,
+html[data-theme="light"] .capital-chart-scroll {
+  scrollbar-color: rgba(16, 185, 129, 0.85) rgba(15, 23, 42, 0.08);
+}
+
+html.theme-light .capital-chart-scroll::-webkit-scrollbar-track,
+html[data-theme="light"] .capital-chart-scroll::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.08);
+}

@@ -4,6 +4,13 @@ import { useState } from "react";
 
 type Theme = "dark" | "light";
 
+function applyTheme(theme: Theme) {
+  document.documentElement.dataset.theme = theme;
+  document.documentElement.classList.remove("theme-dark", "theme-light");
+  document.documentElement.classList.add(`theme-${theme}`);
+  localStorage.setItem("theme", theme);
+}
+
 function getInitialTheme(): Theme {
   if (typeof window === "undefined") {
     return "dark";
@@ -21,8 +28,7 @@ export default function ThemeToggle() {
     const nextTheme: Theme = theme === "dark" ? "light" : "dark";
 
     setTheme(nextTheme);
-    localStorage.setItem("theme", nextTheme);
-    document.documentElement.dataset.theme = nextTheme;
+    applyTheme(nextTheme);
   }
 
   return (
