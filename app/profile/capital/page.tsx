@@ -57,6 +57,12 @@ function getShortMonthLabel(date: string) {
   return monthLabels[parsedDate.getMonth()].slice(0, 3).toUpperCase();
 }
 
+function formatChartMoney(value: number) {
+  return new Intl.NumberFormat("ru-RU", {
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
 function getPath(points: { x: number; y: number }[]) {
   if (points.length === 0) return "";
 
@@ -74,11 +80,7 @@ function getPath(points: { x: number; y: number }[]) {
     .join(" ");
 }
 
-function CapitalLineChart({
-  snapshots,
-}: {
-  snapshots: CapitalSnapshot[];
-}) {
+function CapitalLineChart({ snapshots }: { snapshots: CapitalSnapshot[] }) {
   const sortedSnapshots = [...snapshots].sort((a, b) =>
     a.month.localeCompare(b.month)
   );
@@ -91,20 +93,30 @@ function CapitalLineChart({
     );
   }
 
-  const width = Math.max(760, sortedSnapshots.length * 90);
-  const height = 380;
-  const paddingX = 42;
-  const paddingTop = 48;
-  const paddingBottom = 58;
+  const width = Math.max(1280, sortedSnapshots.length * 125);
+  const height = 460;
 
-  const allValues = sortedSnapshots.flatMap((snapshot) => [
-    snapshot.capitalAmount,
-    snapshot.netIncomeAmount,
-  ]);
+  const paddingX = 70;
+  const capitalTop = 42;
+  const capitalBottom = 190;
+  const incomeTop = 235;
+  const incomeBottom = 370;
+  const monthY = 425;
 
-  const minValue = Math.min(...allValues, 0);
-  const maxValue = Math.max(...allValues, 1);
-  const valueRange = maxValue - minValue || 1;
+  const maxCapital = Math.max(
+    ...sortedSnapshots.map((snapshot) => snapshot.capitalAmount),
+    1
+  );
+
+  const minCapital = Math.min(
+    ...sortedSnapshots.map((snapshot) => snapshot.capitalAmount),
+    0
+  );
+
+  const maxIncomeAbs = Math.max(
+    ...sortedSnapshots.map((snapshot) => Math.abs(snapshot.netIncomeAmount)),
+    1
+  );
 
   function getX(index: number) {
     if (sortedSnapshots.length === 1) {
@@ -117,56 +129,76 @@ function CapitalLineChart({
     );
   }
 
-  function getY(value: number) {
+  function getCapitalY(value: number) {
+    const range = maxCapital - minCapital || 1;
+
     return (
-      paddingTop +
-      ((maxValue - value) / valueRange) *
-        (height - paddingTop - paddingBottom)
+      capitalTop +
+      ((maxCapital - value) / range) * (capitalBottom - capitalTop)
     );
+  }
+
+  function getIncomeY(value: number) {
+    const zeroY = (incomeTop + incomeBottom) / 2;
+    const maxHeight = (incomeBottom - incomeTop) / 2;
+
+    return zeroY - (value / maxIncomeAbs) * maxHeight;
   }
 
   const capitalPoints = sortedSnapshots.map((snapshot, index) => ({
     x: getX(index),
-    y: getY(snapshot.capitalAmount),
+    y: getCapitalY(snapshot.capitalAmount),
   }));
 
   const incomePoints = sortedSnapshots.map((snapshot, index) => ({
     x: getX(index),
-    y: getY(snapshot.netIncomeAmount),
+    y: getIncomeY(snapshot.netIncomeAmount),
   }));
 
-  const zeroY = getY(0);
+  const incomeZeroY = getIncomeY(0);
 
   return (
-    <div className="overflow-x-auto rounded-[2rem] bg-black/20 p-3">
+    <div className="capital-chart-scroll overflow-x-auto rounded-[2rem] bg-black/20 p-4">
       <svg
         viewBox={`0 0 ${width} ${height}`}
         width={width}
         height={height}
         className="block"
       >
+        <defs>
+          <linearGradient id="capitalGradient" x1="0" x2="1" y1="0" y2="0">
+            <stop offset="0%" stopColor="#10b981" />
+            <stop offset="100%" stopColor="#6ee7b7" />
+          </linearGradient>
+
+          <linearGradient id="incomeGradient" x1="0" x2="1" y1="0" y2="0">
+            <stop offset="0%" stopColor="#3b82f6" />
+            <stop offset="100%" stopColor="#93c5fd" />
+          </linearGradient>
+        </defs>
+
         <line
           x1={paddingX}
-          y1={zeroY}
+          y1={incomeZeroY}
           x2={width - paddingX}
-          y2={zeroY}
-          stroke="rgba(255,255,255,0.08)"
+          y2={incomeZeroY}
+          stroke="rgba(148, 163, 184, 0.16)"
           strokeWidth="1"
         />
 
         <path
           d={getPath(capitalPoints)}
           fill="none"
-          stroke="#34d399"
-          strokeWidth="8"
+          stroke="url(#capitalGradient)"
+          strokeWidth="4"
           strokeLinecap="round"
         />
 
         <path
           d={getPath(incomePoints)}
           fill="none"
-          stroke="#60a5fa"
-          strokeWidth="8"
+          stroke="url(#incomeGradient)"
+          strokeWidth="4"
           strokeLinecap="round"
         />
 
@@ -175,17 +207,24 @@ function CapitalLineChart({
 
           return (
             <g key={`capital-${snapshot.id}`}>
-              <circle cx={point.x} cy={point.y} r="7" fill="#34d399" />
+              <circle
+                cx={point.x}
+                cy={point.y}
+                r="5"
+                fill="#34d399"
+                stroke="#080A12"
+                strokeWidth="3"
+              />
 
               <text
                 x={point.x}
-                y={point.y - 14}
+                y={point.y - 13}
                 textAnchor="middle"
-                fontSize="16"
+                fontSize="13"
                 fontWeight="700"
                 fill="#6ee7b7"
               >
-                {formatMoney(snapshot.capitalAmount)}
+                {formatChartMoney(snapshot.capitalAmount)} ₽
               </text>
             </g>
           );
@@ -193,22 +232,28 @@ function CapitalLineChart({
 
         {incomePoints.map((point, index) => {
           const snapshot = sortedSnapshots[index];
+          const labelOffset = snapshot.netIncomeAmount >= 0 ? -13 : 24;
 
           return (
             <g key={`income-${snapshot.id}`}>
-              <circle cx={point.x} cy={point.y} r="7" fill="#60a5fa" />
+              <circle
+                cx={point.x}
+                cy={point.y}
+                r="5"
+                fill={snapshot.netIncomeAmount >= 0 ? "#60a5fa" : "#fb7185"}
+                stroke="#080A12"
+                strokeWidth="3"
+              />
 
               <text
                 x={point.x}
-                y={point.y - 14}
+                y={point.y + labelOffset}
                 textAnchor="middle"
-                fontSize="16"
+                fontSize="13"
                 fontWeight="700"
-                fill={
-                  snapshot.netIncomeAmount >= 0 ? "#93c5fd" : "#fda4af"
-                }
+                fill={snapshot.netIncomeAmount >= 0 ? "#93c5fd" : "#fda4af"}
               >
-                {formatMoney(snapshot.netIncomeAmount)}
+                {formatChartMoney(snapshot.netIncomeAmount)} ₽
               </text>
             </g>
           );
@@ -218,11 +263,12 @@ function CapitalLineChart({
           <text
             key={`month-${snapshot.id}`}
             x={getX(index)}
-            y={height - 20}
+            y={monthY}
             textAnchor="middle"
-            fontSize="15"
-            fontWeight="700"
+            fontSize="14"
+            fontWeight="800"
             fill="#94a3b8"
+            letterSpacing="1"
           >
             {getShortMonthLabel(snapshot.month)}
           </text>
@@ -514,7 +560,7 @@ export default function CapitalPage() {
 
               <p>
                 Синяя линия показывает чистый доход за месяц. Если значение
-                отрицательное, подпись будет красной.
+                отрицательное, точка и подпись будут красными.
               </p>
 
               <p>
