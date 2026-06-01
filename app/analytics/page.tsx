@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useFinance } from "@/context/FinanceContext";
 import { formatMoney } from "@/lib/format";
-import type { Operation, OperationType } from "@/types/finance";
+import type { CapitalSnapshot, Operation, OperationType } from "@/types/finance";
 
 type AnalyticsMode = "overview" | "expenses" | "income" | "capital";
 
@@ -42,6 +42,16 @@ function getMonthLabel(monthKey: string) {
   const monthIndex = Number(month) - 1;
 
   return `${monthNames[monthIndex] ?? month} ${year}`;
+}
+
+function getSnapshotMonthLabel(date: string) {
+  const parsedDate = new Date(date);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return date;
+  }
+
+  return `${monthNames[parsedDate.getMonth()]} ${parsedDate.getFullYear()}`;
 }
 
 function getOperationSource(operation: Operation) {
@@ -87,10 +97,56 @@ function getOperationBg(type: OperationType) {
   return "bg-blue-400";
 }
 
+function getBarHeight(value: number, max: number) {
+  if (!max) return 8;
+
+  return Math.max(8, Math.round((Math.abs(value) / max) * 120));
+}
+
+function getSnapshotChange(
+  snapshot: CapitalSnapshot,
+  previousSnapshot?: CapitalSnapshot
+) {
+  if (!previousSnapshot) return 0;
+
+  return snapshot.capitalAmount - previousSnapshot.capitalAmount;
+}
+
 export default function AnalyticsPage() {
-  const { accounts, goals, operations, budgets, categories } = useFinance();
+  const {
+    accounts,
+    goals,
+    capitalSnapshots,
+    operations,
+    budgets,
+    categories,
+  } = useFinance();
 
   const [mode, setMode] = useState<AnalyticsMode>("overview");
+
+  const sortedCapitalSnapshots = [...capitalSnapshots].sort((a, b) =>
+    a.month.localeCompare(b.month)
+  );
+
+  const latestSnapshot =
+    sortedCapitalSnapshots[sortedCapitalSnapshots.length - 1];
+
+  const previousSnapshot =
+    sortedCapitalSnapshots[sortedCapitalSnapshots.length - 2];
+
+  const latestCapitalFromSnapshots = latestSnapshot?.capitalAmount ?? 0;
+
+  const latestNetIncomeFromSnapshots = latestSnapshot?.netIncomeAmount ?? 0;
+
+  const latestCapitalChange =
+    latestSnapshot && previousSnapshot
+      ? latestSnapshot.capitalAmount - previousSnapshot.capitalAmount
+      : 0;
+
+  const totalHistoricalNetIncome = sortedCapitalSnapshots.reduce(
+    (sum, snapshot) => sum + snapshot.netIncomeAmount,
+    0
+  );
 
   const accountsTotal = accounts.reduce(
     (sum, account) => sum + account.balance,
@@ -99,7 +155,12 @@ export default function AnalyticsPage() {
 
   const goalsTotal = goals.reduce((sum, goal) => sum + goal.currentAmount, 0);
 
-  const capitalTotal = accountsTotal + goalsTotal;
+  const currentCapitalTotal = accountsTotal + goalsTotal;
+
+  const capitalTotal =
+    sortedCapitalSnapshots.length > 0
+      ? latestCapitalFromSnapshots
+      : currentCapitalTotal;
 
   const incomeTotal = operations
     .filter((operation) => operation.type === "income")
@@ -132,6 +193,13 @@ export default function AnalyticsPage() {
 
   const savingsRate =
     incomeTotal > 0 ? Math.round((netResult / incomeTotal) * 100) : 0;
+
+  const historicalSavingsRate =
+    latestNetIncomeFromSnapshots > 0 && latestCapitalFromSnapshots > 0
+      ? Math.round(
+          (latestNetIncomeFromSnapshots / latestCapitalFromSnapshots) * 100
+        )
+      : 0;
 
   const monthlyData = useMemo(() => {
     const map = new Map<
@@ -214,8 +282,8 @@ export default function AnalyticsPage() {
     .map((account) => ({
       name: account.name,
       amount: account.balance,
-      percent: capitalTotal
-        ? Math.round((account.balance / capitalTotal) * 100)
+      percent: currentCapitalTotal
+        ? Math.round((account.balance / currentCapitalTotal) * 100)
         : 0,
     }))
     .sort((a, b) => b.amount - a.amount);
@@ -267,9 +335,20 @@ export default function AnalyticsPage() {
     1
   );
 
+  const maxSnapshotCapital = Math.max(
+    ...sortedCapitalSnapshots.map((item) => item.capitalAmount),
+    1
+  );
+
+  const maxSnapshotNetIncome = Math.max(
+    ...sortedCapitalSnapshots.map((item) => Math.abs(item.netIncomeAmount)),
+    1
+  );
+
   const hasAnyData =
     accounts.length > 0 ||
     goals.length > 0 ||
+    capitalSnapshots.length > 0 ||
     operations.length > 0 ||
     budgets.length > 0 ||
     categories.length > 0;
@@ -292,15 +371,19 @@ export default function AnalyticsPage() {
 
         {!hasAnyData && (
           <section className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 text-slate-400">
-            Данных пока нет. Добавь счета, цели, бюджеты и операции, чтобы здесь
-            появилась аналитика.
+            Данных пока нет. Добавь счета, цели, бюджеты, операции или историю
+            капитала, чтобы здесь появилась аналитика.
           </section>
         )}
 
         <section className="overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br from-blue-400/20 via-emerald-400/10 to-white/[0.04] p-5 shadow-2xl shadow-black/30">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-sm text-slate-300">Общий капитал</p>
+              <p className="text-sm text-slate-300">
+                {sortedCapitalSnapshots.length > 0
+                  ? "Исторический капитал"
+                  : "Текущий капитал"}
+              </p>
               <p className="mt-2 text-4xl font-bold tracking-tight">
                 {formatMoney(capitalTotal)}
               </p>
@@ -308,12 +391,12 @@ export default function AnalyticsPage() {
 
             <div
               className={`rounded-2xl px-3 py-2 text-sm font-semibold ${
-                netResult >= 0
+                latestCapitalChange >= 0
                   ? "bg-emerald-400/15 text-emerald-300"
                   : "bg-rose-400/15 text-rose-300"
               }`}
             >
-              {netResult >= 0 ? "Рост" : "Минус"}
+              {latestCapitalChange >= 0 ? "Рост" : "Минус"}
             </div>
           </div>
 
@@ -333,13 +416,19 @@ export default function AnalyticsPage() {
             </div>
 
             <div className="rounded-3xl bg-black/20 p-4">
-              <p className="text-sm text-slate-400">Результат</p>
+              <p className="text-sm text-slate-400">Последний доход</p>
               <p
                 className={`mt-1 text-xl font-semibold ${
-                  netResult >= 0 ? "text-emerald-300" : "text-rose-300"
+                  latestNetIncomeFromSnapshots >= 0
+                    ? "text-blue-300"
+                    : "text-rose-300"
                 }`}
               >
-                {formatMoney(netResult)}
+                {formatMoney(
+                  sortedCapitalSnapshots.length > 0
+                    ? latestNetIncomeFromSnapshots
+                    : netResult
+                )}
               </p>
             </div>
 
@@ -347,10 +436,19 @@ export default function AnalyticsPage() {
               <p className="text-sm text-slate-400">Норма сбережений</p>
               <p
                 className={`mt-1 text-xl font-semibold ${
-                  savingsRate >= 0 ? "text-emerald-300" : "text-rose-300"
+                  sortedCapitalSnapshots.length > 0
+                    ? historicalSavingsRate >= 0
+                      ? "text-emerald-300"
+                      : "text-rose-300"
+                    : savingsRate >= 0
+                      ? "text-emerald-300"
+                      : "text-rose-300"
                 }`}
               >
-                {savingsRate}%
+                {sortedCapitalSnapshots.length > 0
+                  ? historicalSavingsRate
+                  : savingsRate}
+                %
               </p>
             </div>
           </div>
@@ -377,26 +475,188 @@ export default function AnalyticsPage() {
 
         <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div className="rounded-3xl border border-emerald-400/20 bg-emerald-400/10 p-4">
-            <p className="text-xs text-emerald-200/80">Доходы</p>
+            <p className="text-xs text-emerald-200/80">Доходы по операциям</p>
             <p className="mt-2 text-lg font-bold text-emerald-300">
               {formatMoney(incomeTotal)}
             </p>
           </div>
 
           <div className="rounded-3xl border border-rose-400/20 bg-rose-400/10 p-4">
-            <p className="text-xs text-rose-200/80">Расходы</p>
+            <p className="text-xs text-rose-200/80">Расходы по операциям</p>
             <p className="mt-2 text-lg font-bold text-rose-300">
               {formatMoney(expenseTotal)}
             </p>
           </div>
 
           <div className="rounded-3xl border border-blue-400/20 bg-blue-400/10 p-4">
-            <p className="text-xs text-blue-200/80">Переводы</p>
-            <p className="mt-2 text-lg font-bold text-blue-300">
-              {formatMoney(transferTotal)}
+            <p className="text-xs text-blue-200/80">Исторический доход</p>
+            <p
+              className={`mt-2 text-lg font-bold ${
+                totalHistoricalNetIncome >= 0
+                  ? "text-blue-300"
+                  : "text-rose-300"
+              }`}
+            >
+              {formatMoney(totalHistoricalNetIncome)}
             </p>
           </div>
         </section>
+
+        {(mode === "overview" || mode === "capital") && (
+          <section className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-5">
+            <div className="mb-5">
+              <h2 className="text-xl font-semibold">История капитала</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Зеленый — капитал, синий — чистый доход, красный — отрицательный
+                чистый доход
+              </p>
+            </div>
+
+            {sortedCapitalSnapshots.length === 0 && (
+              <div className="rounded-3xl bg-black/20 p-4 text-slate-400">
+                История капитала пока не добавлена. Открой Профиль → Капитал и
+                добавь данные с фото.
+              </div>
+            )}
+
+            {sortedCapitalSnapshots.length > 0 && (
+              <>
+                <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div className="rounded-3xl bg-black/20 p-4">
+                    <p className="text-sm text-slate-400">Последний капитал</p>
+                    <p className="mt-1 text-xl font-semibold text-emerald-300">
+                      {formatMoney(latestCapitalFromSnapshots)}
+                    </p>
+                  </div>
+
+                  <div className="rounded-3xl bg-black/20 p-4">
+                    <p className="text-sm text-slate-400">Последний доход</p>
+                    <p
+                      className={`mt-1 text-xl font-semibold ${
+                        latestNetIncomeFromSnapshots >= 0
+                          ? "text-blue-300"
+                          : "text-rose-300"
+                      }`}
+                    >
+                      {formatMoney(latestNetIncomeFromSnapshots)}
+                    </p>
+                  </div>
+
+                  <div className="rounded-3xl bg-black/20 p-4">
+                    <p className="text-sm text-slate-400">Изменение</p>
+                    <p
+                      className={`mt-1 text-xl font-semibold ${
+                        latestCapitalChange >= 0
+                          ? "text-emerald-300"
+                          : "text-rose-300"
+                      }`}
+                    >
+                      {formatMoney(latestCapitalChange)}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto pb-2">
+                  <div className="flex min-w-max items-end gap-4">
+                    {sortedCapitalSnapshots.map((snapshot) => {
+                      const capitalHeight = getBarHeight(
+                        snapshot.capitalAmount,
+                        maxSnapshotCapital
+                      );
+
+                      const incomeHeight = getBarHeight(
+                        snapshot.netIncomeAmount,
+                        maxSnapshotNetIncome
+                      );
+
+                      return (
+                        <div
+                          key={snapshot.id}
+                          className="flex w-24 flex-col items-center justify-end gap-2"
+                        >
+                          <div className="flex h-40 items-end gap-2 rounded-3xl bg-black/20 px-3 py-3">
+                            <div
+                              className="w-6 rounded-t-full bg-emerald-400"
+                              style={{ height: `${capitalHeight}px` }}
+                            />
+
+                            <div
+                              className={`w-6 rounded-t-full ${
+                                snapshot.netIncomeAmount >= 0
+                                  ? "bg-blue-400"
+                                  : "bg-rose-400"
+                              }`}
+                              style={{ height: `${incomeHeight}px` }}
+                            />
+                          </div>
+
+                          <p className="w-24 truncate text-center text-xs text-slate-500">
+                            {getSnapshotMonthLabel(snapshot.month)}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-2">
+                  {sortedCapitalSnapshots.map((snapshot, index) => {
+                    const previous = sortedCapitalSnapshots[index - 1];
+                    const change = getSnapshotChange(snapshot, previous);
+
+                    return (
+                      <div
+                        key={snapshot.id}
+                        className="rounded-3xl border border-white/10 bg-black/20 p-4"
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <p className="font-semibold">
+                              {getSnapshotMonthLabel(snapshot.month)}
+                            </p>
+                            <p className="mt-1 text-sm text-slate-500">
+                              Чистый доход:{" "}
+                              <span
+                                className={
+                                  snapshot.netIncomeAmount >= 0
+                                    ? "text-blue-300"
+                                    : "text-rose-300"
+                                }
+                              >
+                                {formatMoney(snapshot.netIncomeAmount)}
+                              </span>
+                            </p>
+                          </div>
+
+                          <p className="text-lg font-bold text-emerald-300">
+                            {formatMoney(snapshot.capitalAmount)}
+                          </p>
+                        </div>
+
+                        {previous && (
+                          <div className="mt-3 flex items-center justify-between rounded-2xl bg-white/[0.04] px-3 py-2 text-sm">
+                            <span className="text-slate-500">
+                              К прошлому месяцу
+                            </span>
+                            <span
+                              className={
+                                change >= 0
+                                  ? "font-semibold text-emerald-300"
+                                  : "font-semibold text-rose-300"
+                              }
+                            >
+                              {formatMoney(change)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </section>
+        )}
 
         {(mode === "overview" || mode === "capital") && (
           <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -405,7 +665,7 @@ export default function AnalyticsPage() {
                 <div>
                   <h2 className="text-xl font-semibold">Структура капитала</h2>
                   <p className="mt-1 text-sm text-slate-500">
-                    Счета и накопления в целях
+                    Текущие счета и накопления в целях
                   </p>
                 </div>
               </div>
@@ -415,8 +675,8 @@ export default function AnalyticsPage() {
                   <div className="mb-2 flex justify-between text-sm">
                     <span className="text-slate-400">Счета</span>
                     <span className="text-blue-300">
-                      {capitalTotal
-                        ? Math.round((accountsTotal / capitalTotal) * 100)
+                      {currentCapitalTotal
+                        ? Math.round((accountsTotal / currentCapitalTotal) * 100)
                         : 0}
                       %
                     </span>
@@ -427,8 +687,10 @@ export default function AnalyticsPage() {
                       className="h-3 rounded-full bg-blue-400"
                       style={{
                         width: `${
-                          capitalTotal
-                            ? Math.round((accountsTotal / capitalTotal) * 100)
+                          currentCapitalTotal
+                            ? Math.round(
+                                (accountsTotal / currentCapitalTotal) * 100
+                              )
                             : 0
                         }%`,
                       }}
@@ -440,8 +702,8 @@ export default function AnalyticsPage() {
                   <div className="mb-2 flex justify-between text-sm">
                     <span className="text-slate-400">Цели</span>
                     <span className="text-emerald-300">
-                      {capitalTotal
-                        ? Math.round((goalsTotal / capitalTotal) * 100)
+                      {currentCapitalTotal
+                        ? Math.round((goalsTotal / currentCapitalTotal) * 100)
                         : 0}
                       %
                     </span>
@@ -452,8 +714,8 @@ export default function AnalyticsPage() {
                       className="h-3 rounded-full bg-emerald-400"
                       style={{
                         width: `${
-                          capitalTotal
-                            ? Math.round((goalsTotal / capitalTotal) * 100)
+                          currentCapitalTotal
+                            ? Math.round((goalsTotal / currentCapitalTotal) * 100)
                             : 0
                         }%`,
                       }}
@@ -525,7 +787,7 @@ export default function AnalyticsPage() {
             <div className="mb-5">
               <h2 className="text-xl font-semibold">Динамика по месяцам</h2>
               <p className="mt-1 text-sm text-slate-500">
-                Доходы, расходы и переводы
+                Доходы, расходы и переводы по операциям
               </p>
             </div>
 
@@ -616,7 +878,9 @@ export default function AnalyticsPage() {
             {(mode === "overview" || mode === "expenses") && (
               <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-5">
                 <div className="mb-5">
-                  <h2 className="text-xl font-semibold">Расходы по категориям</h2>
+                  <h2 className="text-xl font-semibold">
+                    Расходы по категориям
+                  </h2>
                   <p className="mt-1 text-sm text-slate-500">
                     Где уходит больше всего
                   </p>
@@ -669,7 +933,9 @@ export default function AnalyticsPage() {
             {(mode === "overview" || mode === "income") && (
               <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-5">
                 <div className="mb-5">
-                  <h2 className="text-xl font-semibold">Доходы по категориям</h2>
+                  <h2 className="text-xl font-semibold">
+                    Доходы по категориям
+                  </h2>
                   <p className="mt-1 text-sm text-slate-500">
                     Основные источники поступлений
                   </p>
@@ -727,7 +993,7 @@ export default function AnalyticsPage() {
               <div className="mb-5">
                 <h2 className="text-xl font-semibold">Счета</h2>
                 <p className="mt-1 text-sm text-slate-500">
-                  Распределение денег по счетам
+                  Распределение текущих денег по счетам
                 </p>
               </div>
 
@@ -744,7 +1010,7 @@ export default function AnalyticsPage() {
                       <div>
                         <p className="font-semibold">{item.name}</p>
                         <p className="text-sm text-slate-500">
-                          {item.percent}% от капитала
+                          {item.percent}% от текущего капитала
                         </p>
                       </div>
 
@@ -785,7 +1051,8 @@ export default function AnalyticsPage() {
                       <div>
                         <p className="font-semibold">{item.name}</p>
                         <p className="text-sm text-slate-500">
-                          {formatMoney(item.amount)} из {formatMoney(item.target)}
+                          {formatMoney(item.amount)} из{" "}
+                          {formatMoney(item.target)}
                         </p>
                       </div>
 

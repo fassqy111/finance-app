@@ -47,10 +47,189 @@ function getMonthLabel(date: string) {
   return `${monthLabels[parsedDate.getMonth()]} ${parsedDate.getFullYear()}`;
 }
 
-function getBarHeight(value: number, max: number) {
-  if (!max) return 8;
+function getShortMonthLabel(date: string) {
+  const parsedDate = new Date(date);
 
-  return Math.max(8, Math.round((Math.abs(value) / max) * 120));
+  if (Number.isNaN(parsedDate.getTime())) {
+    return date;
+  }
+
+  return monthLabels[parsedDate.getMonth()].slice(0, 3).toUpperCase();
+}
+
+function getPath(points: { x: number; y: number }[]) {
+  if (points.length === 0) return "";
+
+  return points
+    .map((point, index) => {
+      if (index === 0) {
+        return `M ${point.x} ${point.y}`;
+      }
+
+      const previous = points[index - 1];
+      const controlX = (previous.x + point.x) / 2;
+
+      return `C ${controlX} ${previous.y}, ${controlX} ${point.y}, ${point.x} ${point.y}`;
+    })
+    .join(" ");
+}
+
+function CapitalLineChart({
+  snapshots,
+}: {
+  snapshots: CapitalSnapshot[];
+}) {
+  const sortedSnapshots = [...snapshots].sort((a, b) =>
+    a.month.localeCompare(b.month)
+  );
+
+  if (sortedSnapshots.length === 0) {
+    return (
+      <div className="rounded-3xl bg-black/20 p-4 text-slate-400">
+        Данных пока нет
+      </div>
+    );
+  }
+
+  const width = Math.max(760, sortedSnapshots.length * 90);
+  const height = 380;
+  const paddingX = 42;
+  const paddingTop = 48;
+  const paddingBottom = 58;
+
+  const allValues = sortedSnapshots.flatMap((snapshot) => [
+    snapshot.capitalAmount,
+    snapshot.netIncomeAmount,
+  ]);
+
+  const minValue = Math.min(...allValues, 0);
+  const maxValue = Math.max(...allValues, 1);
+  const valueRange = maxValue - minValue || 1;
+
+  function getX(index: number) {
+    if (sortedSnapshots.length === 1) {
+      return width / 2;
+    }
+
+    return (
+      paddingX +
+      (index * (width - paddingX * 2)) / (sortedSnapshots.length - 1)
+    );
+  }
+
+  function getY(value: number) {
+    return (
+      paddingTop +
+      ((maxValue - value) / valueRange) *
+        (height - paddingTop - paddingBottom)
+    );
+  }
+
+  const capitalPoints = sortedSnapshots.map((snapshot, index) => ({
+    x: getX(index),
+    y: getY(snapshot.capitalAmount),
+  }));
+
+  const incomePoints = sortedSnapshots.map((snapshot, index) => ({
+    x: getX(index),
+    y: getY(snapshot.netIncomeAmount),
+  }));
+
+  const zeroY = getY(0);
+
+  return (
+    <div className="overflow-x-auto rounded-[2rem] bg-black/20 p-3">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        width={width}
+        height={height}
+        className="block"
+      >
+        <line
+          x1={paddingX}
+          y1={zeroY}
+          x2={width - paddingX}
+          y2={zeroY}
+          stroke="rgba(255,255,255,0.08)"
+          strokeWidth="1"
+        />
+
+        <path
+          d={getPath(capitalPoints)}
+          fill="none"
+          stroke="#34d399"
+          strokeWidth="8"
+          strokeLinecap="round"
+        />
+
+        <path
+          d={getPath(incomePoints)}
+          fill="none"
+          stroke="#60a5fa"
+          strokeWidth="8"
+          strokeLinecap="round"
+        />
+
+        {capitalPoints.map((point, index) => {
+          const snapshot = sortedSnapshots[index];
+
+          return (
+            <g key={`capital-${snapshot.id}`}>
+              <circle cx={point.x} cy={point.y} r="7" fill="#34d399" />
+
+              <text
+                x={point.x}
+                y={point.y - 14}
+                textAnchor="middle"
+                fontSize="16"
+                fontWeight="700"
+                fill="#6ee7b7"
+              >
+                {formatMoney(snapshot.capitalAmount)}
+              </text>
+            </g>
+          );
+        })}
+
+        {incomePoints.map((point, index) => {
+          const snapshot = sortedSnapshots[index];
+
+          return (
+            <g key={`income-${snapshot.id}`}>
+              <circle cx={point.x} cy={point.y} r="7" fill="#60a5fa" />
+
+              <text
+                x={point.x}
+                y={point.y - 14}
+                textAnchor="middle"
+                fontSize="16"
+                fontWeight="700"
+                fill={
+                  snapshot.netIncomeAmount >= 0 ? "#93c5fd" : "#fda4af"
+                }
+              >
+                {formatMoney(snapshot.netIncomeAmount)}
+              </text>
+            </g>
+          );
+        })}
+
+        {sortedSnapshots.map((snapshot, index) => (
+          <text
+            key={`month-${snapshot.id}`}
+            x={getX(index)}
+            y={height - 20}
+            textAnchor="middle"
+            fontSize="15"
+            fontWeight="700"
+            fill="#94a3b8"
+          >
+            {getShortMonthLabel(snapshot.month)}
+          </text>
+        ))}
+      </svg>
+    </div>
+  );
 }
 
 export default function CapitalPage() {
@@ -85,16 +264,6 @@ export default function CapitalPage() {
     0
   );
 
-  const maxCapital = Math.max(
-    ...sortedSnapshots.map((snapshot) => snapshot.capitalAmount),
-    1
-  );
-
-  const maxNetIncome = Math.max(
-    ...sortedSnapshots.map((snapshot) => Math.abs(snapshot.netIncomeAmount)),
-    1
-  );
-
   function resetForm() {
     setMonth("2025-04-01");
     setCapitalAmount("");
@@ -109,7 +278,11 @@ export default function CapitalPage() {
     const numericCapital = Number(capitalAmount);
     const numericNetIncome = Number(netIncomeAmount);
 
-    if (!month || Number.isNaN(numericCapital) || Number.isNaN(numericNetIncome)) {
+    if (
+      !month ||
+      Number.isNaN(numericCapital) ||
+      Number.isNaN(numericNetIncome)
+    ) {
       alert("Заполни месяц, капитал и чистый доход");
       return;
     }
@@ -227,6 +400,41 @@ export default function CapitalPage() {
           </div>
         </section>
 
+        <section className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-5">
+          <div className="mb-5">
+            <h2 className="text-xl font-semibold">График капитала</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Зеленый — капитал, синий — чистый доход
+            </p>
+          </div>
+
+          <CapitalLineChart snapshots={sortedSnapshots} />
+
+          {latestSnapshot && (
+            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="rounded-3xl bg-emerald-400/10 p-4">
+                <p className="text-sm text-emerald-200/80">Капитал</p>
+                <p className="mt-1 text-2xl font-bold text-emerald-300">
+                  {formatMoney(latestSnapshot.capitalAmount)}
+                </p>
+              </div>
+
+              <div className="rounded-3xl bg-blue-400/10 p-4">
+                <p className="text-sm text-blue-200/80">Чистый доход</p>
+                <p
+                  className={`mt-1 text-2xl font-bold ${
+                    latestSnapshot.netIncomeAmount >= 0
+                      ? "text-blue-300"
+                      : "text-rose-300"
+                  }`}
+                >
+                  {formatMoney(latestSnapshot.netIncomeAmount)}
+                </p>
+              </div>
+            </div>
+          )}
+        </section>
+
         <section className="grid grid-cols-1 gap-4 lg:grid-cols-[0.9fr_1.1fr]">
           <form
             onSubmit={saveSnapshot}
@@ -297,57 +505,22 @@ export default function CapitalPage() {
           </form>
 
           <section className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-5">
-            <h2 className="text-xl font-semibold">График</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Зеленый — капитал, синий — чистый доход
-            </p>
+            <h2 className="text-xl font-semibold">Как читать график</h2>
 
-            {sortedSnapshots.length === 0 && (
-              <div className="mt-5 rounded-3xl bg-black/20 p-4 text-slate-400">
-                Данных пока нет
-              </div>
-            )}
+            <div className="mt-4 space-y-3 text-sm leading-6 text-slate-400">
+              <p>
+                Зеленая линия показывает общий капитал на конец каждого месяца.
+              </p>
 
-            <div className="mt-6 overflow-x-auto pb-2">
-              <div className="flex min-w-max items-end gap-4">
-                {sortedSnapshots.map((snapshot) => {
-                  const capitalHeight = getBarHeight(
-                    snapshot.capitalAmount,
-                    maxCapital
-                  );
-                  const incomeHeight = getBarHeight(
-                    snapshot.netIncomeAmount,
-                    maxNetIncome
-                  );
+              <p>
+                Синяя линия показывает чистый доход за месяц. Если значение
+                отрицательное, подпись будет красной.
+              </p>
 
-                  return (
-                    <div
-                      key={snapshot.id}
-                      className="flex w-20 flex-col items-center justify-end gap-2"
-                    >
-                      <div className="flex h-36 items-end gap-2">
-                        <div
-                          className="w-5 rounded-t-full bg-emerald-400"
-                          style={{ height: `${capitalHeight}px` }}
-                        />
-
-                        <div
-                          className={`w-5 rounded-t-full ${
-                            snapshot.netIncomeAmount >= 0
-                              ? "bg-blue-400"
-                              : "bg-rose-400"
-                          }`}
-                          style={{ height: `${incomeHeight}px` }}
-                        />
-                      </div>
-
-                      <p className="w-20 truncate text-center text-xs text-slate-500">
-                        {getMonthLabel(snapshot.month)}
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
+              <p>
+                График можно прокручивать горизонтально, как в приложении со
+                скриншота.
+              </p>
             </div>
           </section>
         </section>
