@@ -5,13 +5,6 @@
   --foreground: #171717;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
@@ -46,4 +39,137 @@ body {
 
 .capital-chart-scroll::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(90deg, #34d399, #93c5fd);
+}
+
+:root {
+  --app-bg: #080a12;
+  --app-surface: rgba(255, 255, 255, 0.04);
+  --app-surface-strong: rgba(255, 255, 255, 0.08);
+  --app-inner: rgba(0, 0, 0, 0.2);
+  --app-inner-strong: rgba(0, 0, 0, 0.25);
+  --app-border: rgba(255, 255, 255, 0.1);
+  --app-text: #ffffff;
+  --app-muted: #94a3b8;
+  --app-muted-strong: #64748b;
+}
+
+html[data-theme="light"] {
+  --app-bg: #f3f6fb;
+  --app-surface: rgba(255, 255, 255, 0.82);
+  --app-surface-strong: rgba(255, 255, 255, 0.96);
+  --app-inner: rgba(255, 255, 255, 0.72);
+  --app-inner-strong: rgba(255, 255, 255, 0.88);
+  --app-border: rgba(15, 23, 42, 0.1);
+  --app-text: #0f172a;
+  --app-muted: #64748b;
+  --app-muted-strong: #475569;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
+}
+
+html[data-theme="light"] body {
+  background: var(--app-bg);
+  color: var(--app-text);
+}
+
+/* Основной фон страниц */
+html[data-theme="light"] [class*="bg-[#080A12]"] {
+  background-color: var(--app-bg) !important;
+  color: var(--app-text) !important;
+}
+
+/* Карточки */
+html[data-theme="light"] [class*="bg-white/[0.04]"],
+html[data-theme="light"] [class*="bg-white/[0.03]"],
+html[data-theme="light"] [class*="bg-white/[0.06]"],
+html[data-theme="light"] [class*="bg-white/[0.08]"] {
+  background-color: var(--app-surface) !important;
+}
+
+/* Внутренние темные блоки */
+html[data-theme="light"] [class*="bg-black/20"],
+html[data-theme="light"] [class*="bg-black/25"],
+html[data-theme="light"] [class*="bg-black/30"] {
+  background-color: var(--app-inner) !important;
+}
+
+/* Рамки */
+html[data-theme="light"] [class*="border-white/10"],
+html[data-theme="light"] [class*="border-white/20"] {
+  border-color: var(--app-border) !important;
+}
+
+/* Основной текст */
+html[data-theme="light"] .text-white {
+  color: var(--app-text) !important;
+}
+
+/* Вторичный текст */
+html[data-theme="light"] .text-slate-300,
+html[data-theme="light"] .text-slate-400,
+html[data-theme="light"] .text-slate-500 {
+  color: var(--app-muted) !important;
+}
+
+/* Инпуты */
+html[data-theme="light"] input,
+html[data-theme="light"] textarea,
+html[data-theme="light"] select {
+  background-color: rgba(255, 255, 255, 0.9) !important;
+  color: #0f172a !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
+}
+
+html[data-theme="light"] input::placeholder,
+html[data-theme="light"] textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* Белые кнопки в светлой теме */
+html[data-theme="light"] .bg-white.text-neutral-950,
+html[data-theme="light"] button.bg-white {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+}
+
+html[data-theme="light"] button.bg-white:hover {
+  background-color: #1e293b !important;
+}
+
+/* Скролл графика капитала */
+.capital-chart-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(52, 211, 153, 0.7) rgba(255, 255, 255, 0.08);
+}
+
+.capital-chart-scroll::-webkit-scrollbar {
+  height: 10px;
+}
+
+.capital-chart-scroll::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.capital-chart-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: linear-gradient(90deg, #10b981, #60a5fa);
+}
+
+.capital-chart-scroll::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(90deg, #34d399, #93c5fd);
+}
+
+html[data-theme="light"] .capital-chart-scroll {
+  scrollbar-color: rgba(16, 185, 129, 0.85) rgba(15, 23, 42, 0.08);
+}
+
+html[data-theme="light"] .capital-chart-scroll::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.08);
 }

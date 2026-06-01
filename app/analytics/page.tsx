@@ -100,7 +100,7 @@ function getOperationBg(type: OperationType) {
 function getBarHeight(value: number, max: number) {
   if (!max) return 8;
 
-  return Math.max(8, Math.round((Math.abs(value) / max) * 120));
+  return Math.max(10, Math.round((Math.abs(value) / max) * 108));
 }
 
 function getSnapshotChange(
@@ -110,6 +110,90 @@ function getSnapshotChange(
   if (!previousSnapshot) return 0;
 
   return snapshot.capitalAmount - previousSnapshot.capitalAmount;
+}
+
+function CapitalBarsChart({ snapshots }: { snapshots: CapitalSnapshot[] }) {
+  const sortedSnapshots = [...snapshots].sort((a, b) =>
+    a.month.localeCompare(b.month)
+  );
+
+  if (sortedSnapshots.length === 0) {
+    return (
+      <div className="rounded-3xl bg-black/20 p-4 text-slate-400">
+        История капитала пока не добавлена. Открой Профиль → Капитал и добавь
+        данные с фото.
+      </div>
+    );
+  }
+
+  const maxCapital = Math.max(
+    ...sortedSnapshots.map((snapshot) => snapshot.capitalAmount),
+    1
+  );
+
+  const maxIncomeAbs = Math.max(
+    ...sortedSnapshots.map((snapshot) => Math.abs(snapshot.netIncomeAmount)),
+    1
+  );
+
+  return (
+    <div className="capital-chart-scroll overflow-x-auto pb-2">
+      <div className="flex min-w-max items-end gap-4">
+        {sortedSnapshots.map((snapshot) => {
+          const capitalHeight = getBarHeight(snapshot.capitalAmount, maxCapital);
+          const incomeHeight = getBarHeight(
+            snapshot.netIncomeAmount,
+            maxIncomeAbs
+          );
+
+          return (
+            <div
+              key={snapshot.id}
+              className="flex w-32 shrink-0 flex-col items-center gap-3"
+            >
+              <div className="flex h-44 w-full items-end justify-center gap-3 rounded-[2rem] bg-black/20 px-4 py-4">
+                <div className="flex flex-col items-center gap-2">
+                  <p className="whitespace-nowrap text-xs font-bold text-emerald-300">
+                    {formatMoney(snapshot.capitalAmount)}
+                  </p>
+
+                  <div
+                    className="w-8 rounded-t-full bg-emerald-400"
+                    style={{ height: `${capitalHeight}px` }}
+                  />
+                </div>
+
+                <div className="flex flex-col items-center gap-2">
+                  <p
+                    className={`whitespace-nowrap text-xs font-bold ${
+                      snapshot.netIncomeAmount >= 0
+                        ? "text-blue-300"
+                        : "text-rose-300"
+                    }`}
+                  >
+                    {formatMoney(snapshot.netIncomeAmount)}
+                  </p>
+
+                  <div
+                    className={`w-8 rounded-t-full ${
+                      snapshot.netIncomeAmount >= 0
+                        ? "bg-blue-400"
+                        : "bg-rose-400"
+                    }`}
+                    style={{ height: `${incomeHeight}px` }}
+                  />
+                </div>
+              </div>
+
+              <p className="text-center text-sm font-medium text-slate-500">
+                {getSnapshotMonthLabel(snapshot.month)}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 export default function AnalyticsPage() {
@@ -168,10 +252,6 @@ export default function AnalyticsPage() {
 
   const expenseTotal = operations
     .filter((operation) => operation.type === "expense")
-    .reduce((sum, operation) => sum + operation.amount, 0);
-
-  const transferTotal = operations
-    .filter((operation) => operation.type === "transfer")
     .reduce((sum, operation) => sum + operation.amount, 0);
 
   const netResult = incomeTotal - expenseTotal;
@@ -332,16 +412,6 @@ export default function AnalyticsPage() {
 
   const maxIncomeCategoryAmount = Math.max(
     ...categoryIncomeData.map((item) => item.amount),
-    1
-  );
-
-  const maxSnapshotCapital = Math.max(
-    ...sortedCapitalSnapshots.map((item) => item.capitalAmount),
-    1
-  );
-
-  const maxSnapshotNetIncome = Math.max(
-    ...sortedCapitalSnapshots.map((item) => Math.abs(item.netIncomeAmount)),
     1
   );
 
@@ -507,8 +577,8 @@ export default function AnalyticsPage() {
             <div className="mb-5">
               <h2 className="text-xl font-semibold">История капитала</h2>
               <p className="mt-1 text-sm text-slate-500">
-                Зеленый — капитал, синий — чистый доход, красный — отрицательный
-                чистый доход
+                Зеленый — капитал, синий — чистый доход, красный —
+                отрицательный чистый доход
               </p>
             </div>
 
@@ -556,48 +626,7 @@ export default function AnalyticsPage() {
                   </div>
                 </div>
 
-                <div className="overflow-x-auto pb-2">
-                  <div className="flex min-w-max items-end gap-4">
-                    {sortedCapitalSnapshots.map((snapshot) => {
-                      const capitalHeight = getBarHeight(
-                        snapshot.capitalAmount,
-                        maxSnapshotCapital
-                      );
-
-                      const incomeHeight = getBarHeight(
-                        snapshot.netIncomeAmount,
-                        maxSnapshotNetIncome
-                      );
-
-                      return (
-                        <div
-                          key={snapshot.id}
-                          className="flex w-24 flex-col items-center justify-end gap-2"
-                        >
-                          <div className="flex h-40 items-end gap-2 rounded-3xl bg-black/20 px-3 py-3">
-                            <div
-                              className="w-6 rounded-t-full bg-emerald-400"
-                              style={{ height: `${capitalHeight}px` }}
-                            />
-
-                            <div
-                              className={`w-6 rounded-t-full ${
-                                snapshot.netIncomeAmount >= 0
-                                  ? "bg-blue-400"
-                                  : "bg-rose-400"
-                              }`}
-                              style={{ height: `${incomeHeight}px` }}
-                            />
-                          </div>
-
-                          <p className="w-24 truncate text-center text-xs text-slate-500">
-                            {getSnapshotMonthLabel(snapshot.month)}
-                          </p>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
+                <CapitalBarsChart snapshots={sortedCapitalSnapshots} />
 
                 <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-2">
                   {sortedCapitalSnapshots.map((snapshot, index) => {
