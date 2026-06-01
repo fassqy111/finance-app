@@ -173,3 +173,94 @@ html[data-theme="light"] .capital-chart-scroll {
 html[data-theme="light"] .capital-chart-scroll::-webkit-scrollbar-track {
   background: rgba(15, 23, 42, 0.08);
 }
+
+/* Улучшение светлой темы */
+
+html[data-theme="light"] {
+  --nav-bg: rgba(255, 255, 255, 0.92);
+  --nav-item-bg: rgba(15, 23, 42, 0.06);
+  --nav-item-active-bg: #0f172a;
+  --nav-text: #64748b;
+  --nav-text-active: #ffffff;
+}
+
+/* Нижняя навигация */
+html[data-theme="light"] nav,
+html[data-theme="light"] [class*="fixed"][class*="bottom"] {
+  background-color: var(--nav-bg) !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
+  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.18) !important;
+}
+
+/* Неактивные кнопки навигации */
+html[data-theme="light"] nav a,
+html[data-theme="light"] nav button,
+html[data-theme="light"] [class*="bottom"] a,
+html[data-theme="light"] [class*="bottom"] button {
+  color: var(--nav-text) !important;
+}
+
+/* Иконки внутри навигации */
+html[data-theme="light"] nav svg,
+html[data-theme="light"] [class*="bottom"] svg {
+  color: currentColor !important;
+  stroke: currentColor !important;
+}
+
+/* Активная кнопка навигации */
+html[data-theme="light"] nav a[class*="bg-emerald"],
+html[data-theme="light"] nav a[class*="bg-white"],
+html[data-theme="light"] nav a[class*="bg-[#"],
+html[data-theme="light"] [class*="bottom"] a[class*="bg-emerald"],
+html[data-theme="light"] [class*="bottom"] a[class*="bg-white"],
+html[data-theme="light"] [class*="bottom"] a[class*="bg-[#"] {
+  background-color: var(--nav-item-active-bg) !important;
+  color: var(--nav-text-active) !important;
+}
+
+/* Обычные иконки на светлом фоне */
+html[data-theme="light"] svg {
+  color: currentColor;
+  stroke: currentColor;
+}
+
+/* Бледные подписи и иконки делаем контрастнее */
+html[data-theme="light"] .text-slate-300 {
+  color: #475569 !important;
+}
+
+html[data-theme="light"] .text-slate-400 {
+  color: #64748b !important;
+}
+
+html[data-theme="light"] .text-slate-500 {
+  color: #64748b !important;
+}
+
+/* Кнопки-плашки в светлой теме */
+html[data-theme="light"] [class*="bg-white/[0.04]"],
+html[data-theme="light"] [class*="bg-white/[0.06]"],
+html[data-theme="light"] [class*="bg-white/[0.08]"] {
+  background-color: rgba(255, 255, 255, 0.86) !important;
+}
+
+/* Темные внутренние карточки в светлой теме */
+html[data-theme="light"] [class*="bg-black/20"],
+html[data-theme="light"] [class*="bg-black/25"],
+html[data-theme="light"] [class*="bg-black/30"] {
+  background-color: rgba(255, 255, 255, 0.7) !important;
+}
+
+/* Чтобы черные кнопки в светлой теме выглядели нормально */
+html[data-theme="light"] [class*="bg-[#080A12]"],
+html[data-theme="light"] [class*="bg-neutral-950"],
+html[data-theme="light"] [class*="bg-slate-950"] {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+}
+
+/* Если где-то иконка слишком светлая */
+html[data-theme="light"] .opacity-50,
+html[data-theme="light"] .opacity-60 {
+  opacity: 0.85 !important;
+}
