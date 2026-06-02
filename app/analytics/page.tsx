@@ -109,6 +109,12 @@ function formatChartMoney(value: number) {
   }).format(value);
 }
 
+function getSafePercent(value: number, maxValue: number) {
+  if (!maxValue || maxValue <= 0) return 0;
+
+  return Math.min(100, Math.max(0, Math.round((value / maxValue) * 100)));
+}
+
 function getLinePath(points: { x: number; y: number }[]) {
   if (points.length === 0) return "";
 
@@ -266,7 +272,13 @@ function CapitalLineChart({ snapshots }: { snapshots: CapitalSnapshot[] }) {
 
           return (
             <g key={`capital-${snapshot.id}`}>
-              <circle cx={point.x} cy={point.y} r="5" fill="#34d399" stroke="none" />
+              <circle
+                cx={point.x}
+                cy={point.y}
+                r="5"
+                fill="#34d399"
+                stroke="none"
+              />
 
               <text
                 x={point.x}
@@ -545,7 +557,9 @@ export default function AnalyticsPage() {
   const recentOperations = operations.slice(0, 6);
 
   const maxMonthlyAmount = Math.max(
-    ...monthlyData.map((item) => Math.max(item.income, item.expense)),
+    ...monthlyData.map((item) =>
+      Math.max(item.income, item.expense, item.transfer)
+    ),
     1
   );
 
@@ -799,14 +813,17 @@ export default function AnalyticsPage() {
                     </span>
                   </div>
 
-                  <div className="h-3 rounded-full bg-white/[0.06]">
+                  <div className="h-3 overflow-hidden rounded-full bg-white/[0.06]">
                     <div
                       className="h-3 rounded-full bg-blue-400"
                       style={{
                         width: `${
                           currentCapitalTotal
-                            ? Math.round(
-                                (accountsTotal / currentCapitalTotal) * 100
+                            ? Math.min(
+                                100,
+                                Math.round(
+                                  (accountsTotal / currentCapitalTotal) * 100
+                                )
                               )
                             : 0
                         }%`,
@@ -826,13 +843,18 @@ export default function AnalyticsPage() {
                     </span>
                   </div>
 
-                  <div className="h-3 rounded-full bg-white/[0.06]">
+                  <div className="h-3 overflow-hidden rounded-full bg-white/[0.06]">
                     <div
                       className="h-3 rounded-full bg-emerald-400"
                       style={{
                         width: `${
                           currentCapitalTotal
-                            ? Math.round((goalsTotal / currentCapitalTotal) * 100)
+                            ? Math.min(
+                                100,
+                                Math.round(
+                                  (goalsTotal / currentCapitalTotal) * 100
+                                )
+                              )
                             : 0
                         }%`,
                       }}
@@ -866,7 +888,7 @@ export default function AnalyticsPage() {
                   </span>
                 </div>
 
-                <div className="h-3 rounded-full bg-white/[0.06]">
+                <div className="h-3 overflow-hidden rounded-full bg-white/[0.06]">
                   <div
                     className={`h-3 rounded-full ${
                       budgetProgress >= 100
@@ -875,7 +897,7 @@ export default function AnalyticsPage() {
                           ? "bg-orange-400"
                           : "bg-emerald-400"
                     }`}
-                    style={{ width: `${budgetProgress}%` }}
+                    style={{ width: `${Math.min(100, budgetProgress)}%` }}
                   />
                 </div>
               </div>
@@ -933,12 +955,13 @@ export default function AnalyticsPage() {
                         </span>
                       </div>
 
-                      <div className="h-2 rounded-full bg-white/[0.06]">
+                      <div className="h-2 overflow-hidden rounded-full bg-white/[0.06]">
                         <div
                           className="h-2 rounded-full bg-emerald-400"
                           style={{
-                            width: `${Math.round(
-                              (item.income / maxMonthlyAmount) * 100
+                            width: `${getSafePercent(
+                              item.income,
+                              maxMonthlyAmount
                             )}%`,
                           }}
                         />
@@ -953,12 +976,13 @@ export default function AnalyticsPage() {
                         </span>
                       </div>
 
-                      <div className="h-2 rounded-full bg-white/[0.06]">
+                      <div className="h-2 overflow-hidden rounded-full bg-white/[0.06]">
                         <div
                           className="h-2 rounded-full bg-rose-400"
                           style={{
-                            width: `${Math.round(
-                              (item.expense / maxMonthlyAmount) * 100
+                            width: `${getSafePercent(
+                              item.expense,
+                              maxMonthlyAmount
                             )}%`,
                           }}
                         />
@@ -974,12 +998,13 @@ export default function AnalyticsPage() {
                           </span>
                         </div>
 
-                        <div className="h-2 rounded-full bg-white/[0.06]">
+                        <div className="h-2 overflow-hidden rounded-full bg-white/[0.06]">
                           <div
                             className="h-2 rounded-full bg-blue-400"
                             style={{
-                              width: `${Math.round(
-                                (item.transfer / maxMonthlyAmount) * 100
+                              width: `${getSafePercent(
+                                item.transfer,
+                                maxMonthlyAmount
                               )}%`,
                             }}
                           />
@@ -1033,12 +1058,13 @@ export default function AnalyticsPage() {
                           </p>
                         </div>
 
-                        <div className="h-3 rounded-full bg-white/[0.06]">
+                        <div className="h-3 overflow-hidden rounded-full bg-white/[0.06]">
                           <div
                             className="h-3 rounded-full bg-rose-400"
                             style={{
-                              width: `${Math.round(
-                                (item.amount / maxExpenseCategoryAmount) * 100
+                              width: `${getSafePercent(
+                                item.amount,
+                                maxExpenseCategoryAmount
                               )}%`,
                             }}
                           />
@@ -1088,12 +1114,13 @@ export default function AnalyticsPage() {
                           </p>
                         </div>
 
-                        <div className="h-3 rounded-full bg-white/[0.06]">
+                        <div className="h-3 overflow-hidden rounded-full bg-white/[0.06]">
                           <div
                             className="h-3 rounded-full bg-emerald-400"
                             style={{
-                              width: `${Math.round(
-                                (item.amount / maxIncomeCategoryAmount) * 100
+                              width: `${getSafePercent(
+                                item.amount,
+                                maxIncomeCategoryAmount
                               )}%`,
                             }}
                           />
@@ -1139,10 +1166,10 @@ export default function AnalyticsPage() {
                       </p>
                     </div>
 
-                    <div className="h-3 rounded-full bg-white/[0.06]">
+                    <div className="h-3 overflow-hidden rounded-full bg-white/[0.06]">
                       <div
                         className="h-3 rounded-full bg-blue-400"
-                        style={{ width: `${item.percent}%` }}
+                        style={{ width: `${Math.min(100, item.percent)}%` }}
                       />
                     </div>
                   </div>
@@ -1181,10 +1208,10 @@ export default function AnalyticsPage() {
                       </p>
                     </div>
 
-                    <div className="h-3 rounded-full bg-white/[0.06]">
+                    <div className="h-3 overflow-hidden rounded-full bg-white/[0.06]">
                       <div
                         className="h-3 rounded-full bg-emerald-400"
-                        style={{ width: `${item.progress}%` }}
+                        style={{ width: `${Math.min(100, item.progress)}%` }}
                       />
                     </div>
                   </div>
@@ -1236,7 +1263,7 @@ export default function AnalyticsPage() {
                     </p>
                   </div>
 
-                  <div className="h-3 rounded-full bg-white/[0.06]">
+                  <div className="h-3 overflow-hidden rounded-full bg-white/[0.06]">
                     <div
                       className={`h-3 rounded-full ${
                         item.remaining < 0
@@ -1245,7 +1272,7 @@ export default function AnalyticsPage() {
                             ? "bg-orange-400"
                             : "bg-emerald-400"
                       }`}
-                      style={{ width: `${item.progress}%` }}
+                      style={{ width: `${Math.min(100, item.progress)}%` }}
                     />
                   </div>
 
