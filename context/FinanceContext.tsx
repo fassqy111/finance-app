@@ -231,6 +231,25 @@ function getTrashDeletedAt(row: any) {
   return row.deleted_at ? String(row.deleted_at).slice(0, 10) : getTodayDate();
 }
 
+function getCurrentMonthStartDate() {
+  const now = new Date();
+
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
+    2,
+    "0"
+  )}-01`;
+}
+
+function getPreviousMonthStartDate(monthDate: string) {
+  const date = new Date(monthDate);
+  date.setMonth(date.getMonth() - 1);
+
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+    2,
+    "0"
+  )}-01`;
+}
+
 export function FinanceProvider({ children }: { children: ReactNode }) {
   const supabase = useMemo(() => createClient(), []);
 
@@ -246,6 +265,82 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     }
 
     return data.user.id;
+  }
+
+  async function syncCurrentMonthCapitalSnapshot() {
+    const userId = await getCurrentUserId();
+
+    if (!userId) return;
+
+    const currentMonth = getCurrentMonthStartDate();
+    const previousMonth = getPreviousMonthStartDate(currentMonth);
+
+    const [accountsResult, goalsResult, previousSnapshotResult] =
+      await Promise.all([
+        supabase
+          .from("accounts")
+          .select("balance")
+          .eq("is_deleted", false),
+
+        supabase
+          .from("goals")
+          .select("current_amount")
+          .eq("is_deleted", false),
+
+        supabase
+          .from("capital_snapshots")
+          .select("capital_amount")
+          .eq("month", previousMonth)
+          .eq("is_deleted", false)
+          .maybeSingle(),
+      ]);
+
+    if (accountsResult.error) {
+      console.error("Ошибка чтения счетов для капитала:", accountsResult.error);
+      return;
+    }
+
+    if (goalsResult.error) {
+      console.error("Ошибка чтения целей для капитала:", goalsResult.error);
+      return;
+    }
+
+    const accountsTotal = (accountsResult.data ?? []).reduce(
+      (sum: number, account: any) => sum + Number(account.balance ?? 0),
+      0
+    );
+
+    const goalsTotal = (goalsResult.data ?? []).reduce(
+      (sum: number, goal: any) => sum + Number(goal.current_amount ?? 0),
+      0
+    );
+
+    const capitalAmount = accountsTotal + goalsTotal;
+
+    const previousCapitalAmount = Number(
+      previousSnapshotResult.data?.capital_amount ?? 0
+    );
+
+    const netIncomeAmount = capitalAmount - previousCapitalAmount;
+
+    const { error } = await supabase.from("capital_snapshots").upsert(
+      {
+        user_id: userId,
+        month: currentMonth,
+        capital_amount: capitalAmount,
+        net_income_amount: netIncomeAmount,
+        note: "Автоматический расчет текущего месяца",
+        is_deleted: false,
+        deleted_at: null,
+      },
+      {
+        onConflict: "user_id,month",
+      }
+    );
+
+    if (error) {
+      console.error("Ошибка автопересчета капитала:", error);
+    }
   }
 
   async function changeAccountBalance(accountId: string | null, delta: number) {
@@ -639,6 +734,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      await syncCurrentMonthCapitalSnapshot();
       await loadData();
     },
 
@@ -658,6 +754,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      await syncCurrentMonthCapitalSnapshot();
       await loadData();
     },
 
@@ -718,6 +815,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      await syncCurrentMonthCapitalSnapshot();
       await loadData();
     },
 
@@ -740,6 +838,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      await syncCurrentMonthCapitalSnapshot();
       await loadData();
     },
 
@@ -760,6 +859,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      await syncCurrentMonthCapitalSnapshot();
       await loadData();
     },
 
@@ -778,6 +878,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      await syncCurrentMonthCapitalSnapshot();
       await loadData();
     },
 
@@ -993,6 +1094,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       }
 
       await applyOperationBalance(operationRow, 1);
+      await syncCurrentMonthCapitalSnapshot();
       await loadData();
     },
 
@@ -1098,6 +1200,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       }
 
       await applyOperationBalance(newOperationRow, 1);
+      await syncCurrentMonthCapitalSnapshot();
       await loadData();
     },
 
@@ -1131,6 +1234,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      await syncCurrentMonthCapitalSnapshot();
       await loadData();
     },
 
@@ -1392,6 +1496,14 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      if (
+        trashItem.type === "account" ||
+        trashItem.type === "goal" ||
+        trashItem.type === "operation"
+      ) {
+        await syncCurrentMonthCapitalSnapshot();
+      }
+
       await loadData();
     },
 
@@ -1420,6 +1532,14 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      if (
+        trashItem.type === "account" ||
+        trashItem.type === "goal" ||
+        trashItem.type === "operation"
+      ) {
+        await syncCurrentMonthCapitalSnapshot();
+      }
+
       await loadData();
     },
 
@@ -1433,6 +1553,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         supabase.from("recurring_templates").delete().eq("is_deleted", true),
       ]);
 
+      await syncCurrentMonthCapitalSnapshot();
       await loadData();
     },
   };
