@@ -44,16 +44,6 @@ function getMonthLabel(monthKey: string) {
   return `${monthNames[monthIndex] ?? month} ${year}`;
 }
 
-function getSnapshotMonthLabel(date: string) {
-  const parsedDate = new Date(date);
-
-  if (Number.isNaN(parsedDate.getTime())) {
-    return date;
-  }
-
-  return `${monthNames[parsedDate.getMonth()]} ${parsedDate.getFullYear()}`;
-}
-
 function getShortSnapshotMonthLabel(date: string) {
   const parsedDate = new Date(date);
 
@@ -276,7 +266,7 @@ function CapitalLineChart({ snapshots }: { snapshots: CapitalSnapshot[] }) {
 
           return (
             <g key={`capital-${snapshot.id}`}>
-              <circle cx={point.x} cy={point.y} r="5" fill="#34d399" />
+              <circle cx={point.x} cy={point.y} r="5" fill="#34d399" stroke="none" />
 
               <text
                 x={point.x}
@@ -304,6 +294,7 @@ function CapitalLineChart({ snapshots }: { snapshots: CapitalSnapshot[] }) {
                 cy={point.y}
                 r="5"
                 fill={snapshot.netIncomeAmount >= 0 ? "#60a5fa" : "#fb7185"}
+                stroke="none"
               />
 
               <text
@@ -686,9 +677,7 @@ export default function AnalyticsPage() {
                 type="button"
                 onClick={() => setMode(item)}
                 className={`rounded-2xl px-3 py-3 text-sm font-semibold transition ${
-                  mode === item
-                    ? "bg-white text-neutral-950"
-                    : "text-slate-500 hover:text-white"
+                  mode === item ? "app-filter-active" : "app-filter-idle"
                 }`}
               >
                 {getModeLabel(item)}
