@@ -366,6 +366,8 @@ export default function OperationsPage() {
             onChange={(event) => setAmount(event.target.value)}
             placeholder="Сумма"
             type="number"
+            inputMode="decimal"
+            step="0.01"
             min="0"
             className="w-full rounded-2xl border border-white/10 bg-black/25 p-4 text-white outline-none placeholder:text-slate-500 focus:border-emerald-400/60"
           />
