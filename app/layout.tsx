@@ -8,12 +8,15 @@ export const metadata: Metadata = {
   title: "Мои финансы",
   description: "Учет счетов, целей, операций, бюджетов и капитала",
   manifest: "/manifest.json",
-  themeColor: "#080A12",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "Мои финансы",
   },
+};
+
+export const viewport = {
+  themeColor: "#080A12",
 };
 
 export default function RootLayout({
@@ -25,17 +28,22 @@ export default function RootLayout({
     <html lang="ru" suppressHydrationWarning>
       <body>
         <script
-  dangerouslySetInnerHTML={{
-    __html: `
-      try {
-        const theme = localStorage.getItem("theme") || "dark";
-        document.documentElement.dataset.theme = theme;
-        document.documentElement.classList.remove("theme-dark", "theme-light");
-        document.documentElement.classList.add("theme-" + theme);
-      } catch {}
-    `,
-  }}
-/>
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                const theme = localStorage.getItem("theme") || "dark";
+
+                document.documentElement.dataset.theme = theme;
+                document.documentElement.classList.remove("theme-dark", "theme-light", "dark");
+                document.documentElement.classList.add("theme-" + theme);
+
+                if (theme === "dark") {
+                  document.documentElement.classList.add("dark");
+                }
+              } catch {}
+            `,
+          }}
+        />
 
         <FinanceProvider>
           <AppShell>{children}</AppShell>

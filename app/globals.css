@@ -855,3 +855,138 @@ html[data-theme="light"] svg {
   color: currentColor !important;
   stroke: currentColor !important;
 }
+
+/* ===== LIGHT THEME FINAL UI FIX ===== */
+
+/* Плашки доходов/расходов/переводов делаем заполненными */
+html.theme-light .bg-emerald-400\/10,
+html[data-theme="light"] .bg-emerald-400\/10 {
+  background-color: rgba(16, 185, 129, 0.16) !important;
+}
+
+html.theme-light .bg-rose-400\/10,
+html[data-theme="light"] .bg-rose-400\/10 {
+  background-color: rgba(244, 63, 94, 0.13) !important;
+}
+
+html.theme-light .bg-blue-400\/10,
+html[data-theme="light"] .bg-blue-400\/10 {
+  background-color: rgba(96, 165, 250, 0.18) !important;
+}
+
+html.theme-light .bg-orange-400\/10,
+html[data-theme="light"] .bg-orange-400\/10 {
+  background-color: rgba(251, 146, 60, 0.14) !important;
+}
+
+html.theme-light .bg-purple-400\/10,
+html[data-theme="light"] .bg-purple-400\/10 {
+  background-color: rgba(168, 85, 247, 0.14) !important;
+}
+
+/* Цветной текст делаем читаемым */
+html.theme-light .text-emerald-200\/80,
+html.theme-light .text-emerald-300,
+html[data-theme="light"] .text-emerald-200\/80,
+html[data-theme="light"] .text-emerald-300 {
+  color: #059669 !important;
+}
+
+html.theme-light .text-blue-200\/80,
+html.theme-light .text-blue-300,
+html[data-theme="light"] .text-blue-200\/80,
+html[data-theme="light"] .text-blue-300 {
+  color: #2563eb !important;
+}
+
+html.theme-light .text-rose-200\/80,
+html.theme-light .text-rose-300,
+html[data-theme="light"] .text-rose-200\/80,
+html[data-theme="light"] .text-rose-300 {
+  color: #e11d48 !important;
+}
+
+/* Кнопки сохранить/управлять в светлой теме */
+html.theme-light button[class*="bg-[#"],
+html.theme-light a[class*="bg-[#"],
+html.theme-light button.bg-slate-950,
+html.theme-light a.bg-slate-950,
+html.theme-light button.bg-neutral-950,
+html.theme-light a.bg-neutral-950,
+html[data-theme="light"] button[class*="bg-[#"],
+html[data-theme="light"] a[class*="bg-[#"],
+html[data-theme="light"] button.bg-slate-950,
+html[data-theme="light"] a.bg-slate-950,
+html[data-theme="light"] button.bg-neutral-950,
+html[data-theme="light"] a.bg-neutral-950 {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid rgba(15, 23, 42, 0.14) !important;
+}
+
+/* Активные фильтры/табы */
+html.theme-light button.bg-white,
+html.theme-light a.bg-white,
+html[data-theme="light"] button.bg-white,
+html[data-theme="light"] a.bg-white {
+  background-color: #dbeafe !important;
+  color: #1e3a8a !important;
+  border: 1px solid rgba(59, 130, 246, 0.22) !important;
+}
+
+/* Нижняя навигация — внешний контейнер */
+html.theme-light [class*="fixed"][class*="bottom"],
+html[data-theme="light"] [class*="fixed"][class*="bottom"] {
+  background-color: rgba(255, 255, 255, 0.94) !important;
+  border-color: rgba(15, 23, 42, 0.14) !important;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.16) !important;
+}
+
+/* Нижняя навигация — все внутренние темные блоки */
+html.theme-light [class*="fixed"][class*="bottom"] [class*="bg-[#"],
+html.theme-light [class*="fixed"][class*="bottom"] .bg-slate-950,
+html.theme-light [class*="fixed"][class*="bottom"] .bg-neutral-950,
+html.theme-light [class*="fixed"][class*="bottom"] .bg-black,
+html[data-theme="light"] [class*="fixed"][class*="bottom"] [class*="bg-[#"],
+html[data-theme="light"] [class*="fixed"][class*="bottom"] .bg-slate-950,
+html[data-theme="light"] [class*="fixed"][class*="bottom"] .bg-neutral-950,
+html[data-theme="light"] [class*="fixed"][class*="bottom"] .bg-black {
+  background-color: transparent !important;
+}
+
+/* Нижняя навигация — пункты */
+html.theme-light [class*="fixed"][class*="bottom"] a,
+html.theme-light [class*="fixed"][class*="bottom"] button,
+html[data-theme="light"] [class*="fixed"][class*="bottom"] a,
+html[data-theme="light"] [class*="fixed"][class*="bottom"] button {
+  color: #475569 !important;
+}
+
+/* Нижняя навигация — активный пункт */
+html.theme-light [class*="fixed"][class*="bottom"] a[class*="bg-emerald"],
+html.theme-light [class*="fixed"][class*="bottom"] a[class*="bg-blue"],
+html.theme-light [class*="fixed"][class*="bottom"] a[class*="bg-white"],
+html[data-theme="light"] [class*="fixed"][class*="bottom"] a[class*="bg-emerald"],
+html[data-theme="light"] [class*="fixed"][class*="bottom"] a[class*="bg-blue"],
+html[data-theme="light"] [class*="fixed"][class*="bottom"] a[class*="bg-white"] {
+  background-color: #dbeafe !important;
+  color: #0f766e !important;
+}
+
+/* ВАЖНО: убираем черную обводку у SVG-текста и точек графика */
+html.theme-light .capital-chart-scroll text,
+html[data-theme="light"] .capital-chart-scroll text {
+  stroke: none !important;
+  paint-order: normal !important;
+  text-shadow: none !important;
+}
+
+html.theme-light .capital-chart-scroll circle,
+html[data-theme="light"] .capital-chart-scroll circle {
+  stroke: none !important;
+}
+
+html.theme-light .capital-chart-scroll svg,
+html[data-theme="light"] .capital-chart-scroll svg {
+  color: initial !important;
+}

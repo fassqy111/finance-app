@@ -6,8 +6,13 @@ type Theme = "dark" | "light";
 
 function applyTheme(theme: Theme) {
   document.documentElement.dataset.theme = theme;
-  document.documentElement.classList.remove("theme-dark", "theme-light");
+  document.documentElement.classList.remove("theme-dark", "theme-light", "dark");
   document.documentElement.classList.add(`theme-${theme}`);
+
+  if (theme === "dark") {
+    document.documentElement.classList.add("dark");
+  }
+
   localStorage.setItem("theme", theme);
 }
 

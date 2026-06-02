@@ -285,6 +285,7 @@ function CapitalLineChart({ snapshots }: { snapshots: CapitalSnapshot[] }) {
                 fontSize="13"
                 fontWeight="700"
                 fill="#059669"
+                stroke="none"
               >
                 {formatChartMoney(snapshot.capitalAmount)} ₽
               </text>
@@ -312,6 +313,7 @@ function CapitalLineChart({ snapshots }: { snapshots: CapitalSnapshot[] }) {
                 fontSize="13"
                 fontWeight="700"
                 fill={snapshot.netIncomeAmount >= 0 ? "#2563eb" : "#e11d48"}
+                stroke="none"
               >
                 {formatChartMoney(snapshot.netIncomeAmount)} ₽
               </text>
@@ -332,6 +334,7 @@ function CapitalLineChart({ snapshots }: { snapshots: CapitalSnapshot[] }) {
               fontWeight="800"
               fill="#64748b"
               letterSpacing="1"
+              stroke="none"
             >
               <tspan x={getX(index)} dy="0">
                 {label.month}
