@@ -114,6 +114,8 @@ export default function OperationsPage() {
   const [operationType, setOperationType] =
     useState<OperationType>("expense");
 
+  const [isSaving, setIsSaving] = useState(false);
+
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
   const [account, setAccount] = useState(accounts[0]?.name ?? "");
@@ -199,7 +201,9 @@ export default function OperationsPage() {
   async function saveOperation(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const numericAmount = Number(amount);
+    if (isSaving) return;
+
+    const numericAmount = Number(String(amount).replace(",", "."));
 
     if (!title.trim()) {
       alert("Укажи название операции");
@@ -221,64 +225,70 @@ export default function OperationsPage() {
       return;
     }
 
-    if (operationType === "transfer") {
-      const selectedFromAccount =
-        fromTargetType === "account" ? fromAccount : "";
-      const selectedFromGoal = fromTargetType === "goal" ? fromGoal : "";
+    setIsSaving(true);
 
-      const selectedToAccount = toTargetType === "account" ? toAccount : "";
-      const selectedToGoal = toTargetType === "goal" ? toGoal : "";
+    try {
+      if (operationType === "transfer") {
+        const selectedFromAccount =
+          fromTargetType === "account" ? fromAccount : "";
+        const selectedFromGoal = fromTargetType === "goal" ? fromGoal : "";
 
-      if (fromTargetType === "account" && !selectedFromAccount) {
-        alert("Выбери счет списания");
-        return;
-      }
+        const selectedToAccount = toTargetType === "account" ? toAccount : "";
+        const selectedToGoal = toTargetType === "goal" ? toGoal : "";
 
-      if (fromTargetType === "goal" && !selectedFromGoal) {
-        alert("Выбери цель списания");
-        return;
-      }
+        if (fromTargetType === "account" && !selectedFromAccount) {
+          alert("Выбери счет списания");
+          return;
+        }
 
-      if (toTargetType === "account" && !selectedToAccount) {
-        alert("Выбери счет зачисления");
-        return;
-      }
+        if (fromTargetType === "goal" && !selectedFromGoal) {
+          alert("Выбери цель списания");
+          return;
+        }
 
-      if (toTargetType === "goal" && !selectedToGoal) {
-        alert("Выбери цель зачисления");
+        if (toTargetType === "account" && !selectedToAccount) {
+          alert("Выбери счет зачисления");
+          return;
+        }
+
+        if (toTargetType === "goal" && !selectedToGoal) {
+          alert("Выбери цель зачисления");
+          return;
+        }
+
+        await addOperation({
+          title: title.trim(),
+          type: "transfer",
+          amount: numericAmount,
+          account: selectedFromAccount,
+          goal: selectedFromGoal,
+          toAccount: selectedToAccount,
+          toGoal: selectedToGoal,
+          fromTargetType,
+          toTargetType,
+          category: "Перевод",
+          date,
+          note: note.trim(),
+        });
+
+        resetForm();
         return;
       }
 
       await addOperation({
         title: title.trim(),
-        type: "transfer",
+        type: operationType,
         amount: numericAmount,
-        account: selectedFromAccount,
-        goal: selectedFromGoal,
-        toAccount: selectedToAccount,
-        toGoal: selectedToGoal,
-        fromTargetType,
-        toTargetType,
-        category: "Перевод",
+        account,
+        category,
         date,
         note: note.trim(),
       });
 
       resetForm();
-      return;
+    } finally {
+      setIsSaving(false);
     }
-
-    await addOperation({
-      title: title.trim(),
-      type: operationType,
-      amount: numericAmount,
-      account,
-      category,
-      date,
-      note: note.trim(),
-    });
-
-    resetForm();
   }
 
   return (
@@ -331,11 +341,12 @@ export default function OperationsPage() {
               <button
                 key={item.value}
                 type="button"
+                disabled={isSaving}
                 onClick={() => {
                   setOperationType(item.value);
                   setCategory("");
                 }}
-                className={`rounded-2xl px-3 py-3 text-sm font-semibold transition ${
+                className={`rounded-2xl px-3 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
                   operationType === item.value
                     ? item.value === "expense"
                       ? "bg-rose-400/15 text-rose-300"
@@ -354,7 +365,8 @@ export default function OperationsPage() {
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             placeholder="Название операции"
-            className="w-full rounded-2xl border border-white/10 bg-black/25 p-4 text-white outline-none placeholder:text-slate-500 focus:border-emerald-400/60"
+            disabled={isSaving}
+            className="w-full rounded-2xl border border-white/10 bg-black/25 p-4 text-white outline-none placeholder:text-slate-500 focus:border-emerald-400/60 disabled:cursor-not-allowed disabled:opacity-60"
           />
 
           <input
@@ -365,7 +377,8 @@ export default function OperationsPage() {
             inputMode="decimal"
             step="0.01"
             min="0"
-            className="w-full rounded-2xl border border-white/10 bg-black/25 p-4 text-white outline-none placeholder:text-slate-500 focus:border-emerald-400/60"
+            disabled={isSaving}
+            className="w-full rounded-2xl border border-white/10 bg-black/25 p-4 text-white outline-none placeholder:text-slate-500 focus:border-emerald-400/60 disabled:cursor-not-allowed disabled:opacity-60"
           />
 
           {operationType !== "transfer" && (
@@ -373,11 +386,10 @@ export default function OperationsPage() {
               <select
                 value={account}
                 onChange={(event) => setAccount(event.target.value)}
-                className="w-full rounded-2xl border border-white/10 bg-black/25 p-4 text-white outline-none focus:border-emerald-400/60"
+                disabled={isSaving}
+                className="w-full rounded-2xl border border-white/10 bg-black/25 p-4 text-white outline-none focus:border-emerald-400/60 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {accounts.length === 0 && (
-                  <option value="">Нет счетов</option>
-                )}
+                {accounts.length === 0 && <option value="">Нет счетов</option>}
 
                 {accounts.map((item) => (
                   <option key={item.id} value={item.name}>
@@ -389,7 +401,8 @@ export default function OperationsPage() {
               <select
                 value={category}
                 onChange={(event) => setCategory(event.target.value)}
-                className="w-full rounded-2xl border border-white/10 bg-black/25 p-4 text-white outline-none focus:border-emerald-400/60"
+                disabled={isSaving}
+                className="w-full rounded-2xl border border-white/10 bg-black/25 p-4 text-white outline-none focus:border-emerald-400/60 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <option value="">Выбери категорию</option>
 
@@ -412,8 +425,9 @@ export default function OperationsPage() {
                 <div className="grid grid-cols-2 gap-1 rounded-3xl bg-black/20 p-1">
                   <button
                     type="button"
+                    disabled={isSaving}
                     onClick={() => setFromTargetType("account")}
-                    className={`rounded-2xl px-3 py-3 text-sm font-semibold transition ${
+                    className={`rounded-2xl px-3 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
                       fromTargetType === "account"
                         ? "bg-white text-neutral-950"
                         : "text-slate-500 hover:text-white"
@@ -424,8 +438,9 @@ export default function OperationsPage() {
 
                   <button
                     type="button"
+                    disabled={isSaving}
                     onClick={() => setFromTargetType("goal")}
-                    className={`rounded-2xl px-3 py-3 text-sm font-semibold transition ${
+                    className={`rounded-2xl px-3 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
                       fromTargetType === "goal"
                         ? "bg-white text-neutral-950"
                         : "text-slate-500 hover:text-white"
@@ -439,7 +454,8 @@ export default function OperationsPage() {
                   <select
                     value={fromAccount}
                     onChange={(event) => setFromAccount(event.target.value)}
-                    className="w-full rounded-2xl border border-white/10 bg-black/25 p-4 text-white outline-none focus:border-blue-400/60"
+                    disabled={isSaving}
+                    className="w-full rounded-2xl border border-white/10 bg-black/25 p-4 text-white outline-none focus:border-blue-400/60 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {accounts.map((item) => (
                       <option key={item.id} value={item.name}>
@@ -451,7 +467,8 @@ export default function OperationsPage() {
                   <select
                     value={fromGoal}
                     onChange={(event) => setFromGoal(event.target.value)}
-                    className="w-full rounded-2xl border border-white/10 bg-black/25 p-4 text-white outline-none focus:border-blue-400/60"
+                    disabled={isSaving}
+                    className="w-full rounded-2xl border border-white/10 bg-black/25 p-4 text-white outline-none focus:border-blue-400/60 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {goals.map((item) => (
                       <option key={item.id} value={item.name}>
@@ -470,8 +487,9 @@ export default function OperationsPage() {
                 <div className="grid grid-cols-2 gap-1 rounded-3xl bg-black/20 p-1">
                   <button
                     type="button"
+                    disabled={isSaving}
                     onClick={() => setToTargetType("account")}
-                    className={`rounded-2xl px-3 py-3 text-sm font-semibold transition ${
+                    className={`rounded-2xl px-3 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
                       toTargetType === "account"
                         ? "bg-white text-neutral-950"
                         : "text-slate-500 hover:text-white"
@@ -482,8 +500,9 @@ export default function OperationsPage() {
 
                   <button
                     type="button"
+                    disabled={isSaving}
                     onClick={() => setToTargetType("goal")}
-                    className={`rounded-2xl px-3 py-3 text-sm font-semibold transition ${
+                    className={`rounded-2xl px-3 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
                       toTargetType === "goal"
                         ? "bg-white text-neutral-950"
                         : "text-slate-500 hover:text-white"
@@ -497,7 +516,8 @@ export default function OperationsPage() {
                   <select
                     value={toAccount}
                     onChange={(event) => setToAccount(event.target.value)}
-                    className="w-full rounded-2xl border border-white/10 bg-black/25 p-4 text-white outline-none focus:border-blue-400/60"
+                    disabled={isSaving}
+                    className="w-full rounded-2xl border border-white/10 bg-black/25 p-4 text-white outline-none focus:border-blue-400/60 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {accounts.map((item) => (
                       <option key={item.id} value={item.name}>
@@ -509,7 +529,8 @@ export default function OperationsPage() {
                   <select
                     value={toGoal}
                     onChange={(event) => setToGoal(event.target.value)}
-                    className="w-full rounded-2xl border border-white/10 bg-black/25 p-4 text-white outline-none focus:border-blue-400/60"
+                    disabled={isSaving}
+                    className="w-full rounded-2xl border border-white/10 bg-black/25 p-4 text-white outline-none focus:border-blue-400/60 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {goals.map((item) => (
                       <option key={item.id} value={item.name}>
@@ -526,7 +547,8 @@ export default function OperationsPage() {
             value={date}
             onChange={(event) => setDate(event.target.value)}
             type="date"
-            className="w-full rounded-2xl border border-white/10 bg-black/25 p-4 text-white outline-none focus:border-emerald-400/60"
+            disabled={isSaving}
+            className="w-full rounded-2xl border border-white/10 bg-black/25 p-4 text-white outline-none focus:border-emerald-400/60 disabled:cursor-not-allowed disabled:opacity-60"
           />
 
           <textarea
@@ -534,14 +556,16 @@ export default function OperationsPage() {
             onChange={(event) => setNote(event.target.value)}
             placeholder="Заметка"
             rows={3}
-            className="w-full resize-none rounded-2xl border border-white/10 bg-black/25 p-4 text-white outline-none placeholder:text-slate-500 focus:border-emerald-400/60"
+            disabled={isSaving}
+            className="w-full resize-none rounded-2xl border border-white/10 bg-black/25 p-4 text-white outline-none placeholder:text-slate-500 focus:border-emerald-400/60 disabled:cursor-not-allowed disabled:opacity-60"
           />
 
           <button
             type="submit"
-            className="app-primary-button w-full rounded-3xl p-4 font-bold transition hover:opacity-90"
+            disabled={isSaving}
+            className="app-primary-button w-full rounded-3xl p-4 font-bold transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Сохранить операцию
+            {isSaving ? "Сохраняю..." : "Сохранить операцию"}
           </button>
         </form>
 

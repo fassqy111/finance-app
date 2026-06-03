@@ -66,6 +66,7 @@ type FinanceContextValue = FinanceState & {
   clearTrash: () => Promise<void>;
 
   reloadData: () => Promise<void>;
+  recalculateBalancesFromOperations: () => Promise<void>;
 };
 
 const FinanceContext = createContext<FinanceContextValue | null>(null);
@@ -280,16 +281,19 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         supabase
           .from("accounts")
           .select("balance")
+          .eq("user_id", userId)
           .eq("is_deleted", false),
 
         supabase
           .from("goals")
           .select("current_amount")
+          .eq("user_id", userId)
           .eq("is_deleted", false),
 
         supabase
           .from("capital_snapshots")
           .select("capital_amount")
+          .eq("user_id", userId)
           .eq("month", previousMonth)
           .eq("is_deleted", false)
           .maybeSingle(),
@@ -482,18 +486,15 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
   async function ensureDefaultCategories() {
     const userId = await getCurrentUserId();
 
-    if (!userId) {
-      return;
-    }
+    if (!userId) return;
 
     const { data: existingCategories } = await supabase
       .from("categories")
       .select("id")
+      .eq("user_id", userId)
       .limit(1);
 
-    if (existingCategories && existingCategories.length > 0) {
-      return;
-    }
+    if (existingCategories && existingCategories.length > 0) return;
 
     await supabase.from("categories").insert(
       defaultCategories.map((category) => ({
@@ -502,6 +503,158 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         type: category.type,
       }))
     );
+  }
+
+  async function recalculateBalancesFromOperationsInDatabase() {
+    const userId = await getCurrentUserId();
+
+    if (!userId) return;
+
+    const confirmed = window.confirm(
+      "Пересчитать балансы счетов и целей по операциям?\n\nВажно: текущие балансы будут заменены расчетом из истории операций. Если в истории нет стартового остатка или старых операций, итог может отличаться от реального."
+    );
+
+    if (!confirmed) return;
+
+    const [accountsResult, goalsResult, operationsResult] = await Promise.all([
+      supabase
+        .from("accounts")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("is_deleted", false),
+
+      supabase
+        .from("goals")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("is_deleted", false),
+
+      supabase
+        .from("operations")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("is_deleted", false),
+    ]);
+
+    if (accountsResult.error) {
+      alert(accountsResult.error.message);
+      console.error("Ошибка чтения счетов:", accountsResult.error);
+      return;
+    }
+
+    if (goalsResult.error) {
+      alert(goalsResult.error.message);
+      console.error("Ошибка чтения целей:", goalsResult.error);
+      return;
+    }
+
+    if (operationsResult.error) {
+      alert(operationsResult.error.message);
+      console.error("Ошибка чтения операций:", operationsResult.error);
+      return;
+    }
+
+    const accountBalances = new Map<string, number>();
+    const goalBalances = new Map<string, number>();
+
+    (accountsResult.data ?? []).forEach((account: any) => {
+      accountBalances.set(account.id, 0);
+    });
+
+    (goalsResult.data ?? []).forEach((goal: any) => {
+      goalBalances.set(goal.id, 0);
+    });
+
+    (operationsResult.data ?? []).forEach((operation: any) => {
+      const amount = Number(operation.amount ?? 0);
+
+      if (operation.type === "expense") {
+        if (operation.account_id) {
+          accountBalances.set(
+            operation.account_id,
+            (accountBalances.get(operation.account_id) ?? 0) - amount
+          );
+        }
+
+        return;
+      }
+
+      if (operation.type === "income") {
+        if (operation.account_id) {
+          accountBalances.set(
+            operation.account_id,
+            (accountBalances.get(operation.account_id) ?? 0) + amount
+          );
+        }
+
+        return;
+      }
+
+      if (operation.type === "transfer") {
+        const fromTargetType = operation.from_target_type ?? "account";
+        const toTargetType = operation.to_target_type ?? "account";
+
+        if (fromTargetType === "account" && operation.account_id) {
+          accountBalances.set(
+            operation.account_id,
+            (accountBalances.get(operation.account_id) ?? 0) - amount
+          );
+        }
+
+        if (fromTargetType === "goal" && operation.goal_id) {
+          goalBalances.set(
+            operation.goal_id,
+            (goalBalances.get(operation.goal_id) ?? 0) - amount
+          );
+        }
+
+        if (toTargetType === "account" && operation.to_account_id) {
+          accountBalances.set(
+            operation.to_account_id,
+            (accountBalances.get(operation.to_account_id) ?? 0) + amount
+          );
+        }
+
+        if (toTargetType === "goal" && operation.to_goal_id) {
+          goalBalances.set(
+            operation.to_goal_id,
+            (goalBalances.get(operation.to_goal_id) ?? 0) + amount
+          );
+        }
+      }
+    });
+
+    const accountUpdates = Array.from(accountBalances.entries()).map(
+      ([id, balance]) =>
+        supabase
+          .from("accounts")
+          .update({
+            balance,
+          })
+          .eq("id", id)
+    );
+
+    const goalUpdates = Array.from(goalBalances.entries()).map(([id, amount]) =>
+      supabase
+        .from("goals")
+        .update({
+          current_amount: amount,
+        })
+        .eq("id", id)
+    );
+
+    const updateResults = await Promise.all([...accountUpdates, ...goalUpdates]);
+
+    const failedResult = updateResults.find((result) => result.error);
+
+    if (failedResult?.error) {
+      alert(failedResult.error.message);
+      console.error("Ошибка пересчета балансов:", failedResult.error);
+      return;
+    }
+
+    await syncCurrentMonthCapitalSnapshot();
+    await loadData();
   }
 
   async function loadData() {
@@ -714,6 +867,10 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
 
     async reloadData() {
       await loadData();
+    },
+
+    async recalculateBalancesFromOperations() {
+      await recalculateBalancesFromOperationsInDatabase();
     },
 
     async addAccount(account) {
