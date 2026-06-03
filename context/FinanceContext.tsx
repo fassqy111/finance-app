@@ -99,6 +99,7 @@ function mapAccount(row: any): Account {
     id: row.id,
     name: row.name,
     balance: Number(row.balance ?? 0),
+    initialBalance: Number(row.initial_balance ?? 0),
     currency: row.currency === "RUB" ? "₽" : row.currency ?? "₽",
   };
 }
@@ -412,9 +413,14 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
   async function changeBudgetSpent(categoryId: string | null, delta: number) {
     if (!categoryId || delta === 0) return;
 
+    const userId = await getCurrentUserId();
+
+    if (!userId) return;
+
     const { data, error } = await supabase
       .from("budgets")
       .select("id, spent_amount")
+      .eq("user_id", userId)
       .eq("category_id", categoryId)
       .eq("is_deleted", false)
       .limit(1)
@@ -511,7 +517,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     if (!userId) return;
 
     const confirmed = window.confirm(
-      "Пересчитать балансы счетов и целей по операциям?\n\nВажно: текущие балансы будут заменены расчетом из истории операций. Если в истории нет стартового остатка или старых операций, итог может отличаться от реального."
+      "Пересчитать балансы счетов и целей по операциям?\n\nБаланс счета будет считаться так:\nстартовый остаток + доходы - расходы + переводы.\n\nТекущие балансы будут заменены расчетом."
     );
 
     if (!confirmed) return;
@@ -519,7 +525,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     const [accountsResult, goalsResult, operationsResult] = await Promise.all([
       supabase
         .from("accounts")
-        .select("id")
+        .select("id, initial_balance")
         .eq("user_id", userId)
         .eq("is_deleted", false),
 
@@ -558,7 +564,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     const goalBalances = new Map<string, number>();
 
     (accountsResult.data ?? []).forEach((account: any) => {
-      accountBalances.set(account.id, 0);
+      accountBalances.set(account.id, Number(account.initial_balance ?? 0));
     });
 
     (goalsResult.data ?? []).forEach((goal: any) => {
@@ -668,6 +674,8 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    const userId = userData.user.id;
+
     await ensureDefaultCategories();
 
     const [
@@ -679,27 +687,47 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       budgetsResult,
       templatesResult,
     ] = await Promise.all([
-      supabase.from("accounts").select("*").order("created_at", {
-        ascending: false,
-      }),
-      supabase.from("goals").select("*").order("created_at", {
-        ascending: false,
-      }),
-      supabase.from("capital_snapshots").select("*").order("month", {
-        ascending: true,
-      }),
-      supabase.from("categories").select("*").order("created_at", {
-        ascending: false,
-      }),
-      supabase.from("operations").select("*").order("operation_date", {
-        ascending: false,
-      }),
-      supabase.from("budgets").select("*").order("created_at", {
-        ascending: false,
-      }),
-      supabase.from("recurring_templates").select("*").order("created_at", {
-        ascending: false,
-      }),
+      supabase
+        .from("accounts")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false }),
+
+      supabase
+        .from("goals")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false }),
+
+      supabase
+        .from("capital_snapshots")
+        .select("*")
+        .eq("user_id", userId)
+        .order("month", { ascending: true }),
+
+      supabase
+        .from("categories")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false }),
+
+      supabase
+        .from("operations")
+        .select("*")
+        .eq("user_id", userId)
+        .order("operation_date", { ascending: false }),
+
+      supabase
+        .from("budgets")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false }),
+
+      supabase
+        .from("recurring_templates")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false }),
     ]);
 
     const allAccountRows = accountsResult.data ?? [];
@@ -878,10 +906,13 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
 
       if (!userId) return;
 
+      const initialBalance = Number(account.initialBalance ?? account.balance ?? 0);
+
       const { error } = await supabase.from("accounts").insert({
         user_id: userId,
         name: account.name,
         balance: account.balance,
+        initial_balance: initialBalance,
         currency: "RUB",
       });
 
@@ -901,6 +932,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         .update({
           name: account.name,
           balance: account.balance,
+          initial_balance: Number(account.initialBalance ?? 0),
           currency: "RUB",
         })
         .eq("id", account.id);
@@ -1701,13 +1733,46 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     },
 
     async clearTrash() {
+      const userId = await getCurrentUserId();
+
+      if (!userId) return;
+
       await Promise.all([
-        supabase.from("accounts").delete().eq("is_deleted", true),
-        supabase.from("goals").delete().eq("is_deleted", true),
-        supabase.from("operations").delete().eq("is_deleted", true),
-        supabase.from("budgets").delete().eq("is_deleted", true),
-        supabase.from("categories").delete().eq("is_deleted", true),
-        supabase.from("recurring_templates").delete().eq("is_deleted", true),
+        supabase
+          .from("accounts")
+          .delete()
+          .eq("user_id", userId)
+          .eq("is_deleted", true),
+
+        supabase
+          .from("goals")
+          .delete()
+          .eq("user_id", userId)
+          .eq("is_deleted", true),
+
+        supabase
+          .from("operations")
+          .delete()
+          .eq("user_id", userId)
+          .eq("is_deleted", true),
+
+        supabase
+          .from("budgets")
+          .delete()
+          .eq("user_id", userId)
+          .eq("is_deleted", true),
+
+        supabase
+          .from("categories")
+          .delete()
+          .eq("user_id", userId)
+          .eq("is_deleted", true),
+
+        supabase
+          .from("recurring_templates")
+          .delete()
+          .eq("user_id", userId)
+          .eq("is_deleted", true),
       ]);
 
       await syncCurrentMonthCapitalSnapshot();

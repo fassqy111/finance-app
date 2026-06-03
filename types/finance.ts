@@ -1,7 +1,16 @@
+export type RecurringFrequency = "daily" | "weekly" | "monthly";
+
+export type OperationType = "expense" | "income" | "transfer";
+
+export type CategoryType = "expense" | "income";
+
+export type TransferTargetType = "account" | "goal";
+
 export type Account = {
   id: string;
   name: string;
   balance: number;
+  initialBalance?: number;
   currency: string;
 };
 
@@ -18,12 +27,8 @@ export type CapitalSnapshot = {
   month: string;
   capitalAmount: number;
   netIncomeAmount: number;
-  note?: string;
+  note: string;
 };
-
-export type OperationType = "income" | "expense" | "transfer";
-
-export type TransferTargetType = "account" | "goal";
 
 export type Operation = {
   id: string;
@@ -41,7 +46,7 @@ export type Operation = {
   toGoal?: string;
 
   category: string;
-  note?: string;
+  note: string;
   date: string;
 };
 
@@ -53,15 +58,11 @@ export type Budget = {
   currency: string;
 };
 
-export type CategoryType = "income" | "expense";
-
 export type Category = {
   id: string;
   name: string;
   type: CategoryType;
 };
-
-export type RecurringFrequency = "daily" | "weekly" | "monthly";
 
 export type RecurringTemplate = {
   id: string;
@@ -79,23 +80,16 @@ export type RecurringTemplate = {
   toGoal?: string;
 
   category?: string;
-  note?: string;
+  note: string;
+
   frequency: RecurringFrequency;
   dayOfWeek?: number;
   dayOfMonth?: number;
 };
 
-export type TrashItemType =
-  | "account"
-  | "goal"
-  | "operation"
-  | "budget"
-  | "category"
-  | "template";
-
 export type TrashItem = {
   id: string;
-  type: TrashItemType;
+  type: "account" | "goal" | "operation" | "budget" | "category" | "template";
   title: string;
   deletedAt: string;
   data: Account | Goal | Operation | Budget | Category | RecurringTemplate;
