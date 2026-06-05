@@ -156,9 +156,6 @@ function mapOperation(
   const toGoal = goals.find((item) => item.id === row.to_goal_id);
   const category = categories.find((item) => item.id === row.category_id);
 
-  const fromTargetType = row.from_target_type ?? "account";
-  const toTargetType = row.to_target_type ?? "account";
-
   return {
     id: row.id,
     type: row.type,
@@ -168,8 +165,8 @@ function mapOperation(
     account: account?.name ?? "",
     toAccount: toAccount?.name,
 
-    fromTargetType,
-    toTargetType,
+    fromTargetType: row.from_target_type ?? "account",
+    toTargetType: row.to_target_type ?? "account",
 
     goal: goal?.name,
     toGoal: toGoal?.name,
@@ -368,9 +365,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
 
     const { error: updateError } = await supabase
       .from("accounts")
-      .update({
-        balance: nextBalance,
-      })
+      .update({ balance: nextBalance })
       .eq("id", accountId);
 
     if (updateError) {
@@ -399,9 +394,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
 
     const { error: updateError } = await supabase
       .from("goals")
-      .update({
-        current_amount: nextAmount,
-      })
+      .update({ current_amount: nextAmount })
       .eq("id", goalId);
 
     if (updateError) {
@@ -439,9 +432,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
 
     const { error: updateError } = await supabase
       .from("budgets")
-      .update({
-        spent_amount: nextSpent,
-      })
+      .update({ spent_amount: nextSpent })
       .eq("id", data.id);
 
     if (updateError) {
@@ -460,6 +451,13 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     }
 
     if (operationRow.type === "income") {
+      const toTargetType = operationRow.to_target_type ?? "account";
+
+      if (toTargetType === "goal") {
+        await changeGoalBalance(operationRow.goal_id, amount * direction);
+        return;
+      }
+
       await changeAccountBalance(operationRow.account_id, amount * direction);
       return;
     }
@@ -586,6 +584,16 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       }
 
       if (operation.type === "income") {
+        const toTargetType = operation.to_target_type ?? "account";
+
+        if (toTargetType === "goal" && operation.goal_id) {
+          goalBalances.set(
+            operation.goal_id,
+            (goalBalances.get(operation.goal_id) ?? 0) + amount
+          );
+          return;
+        }
+
         if (operation.account_id) {
           accountBalances.set(
             operation.account_id,
@@ -632,21 +640,11 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
 
     const accountUpdates = Array.from(accountBalances.entries()).map(
       ([id, balance]) =>
-        supabase
-          .from("accounts")
-          .update({
-            balance,
-          })
-          .eq("id", id)
+        supabase.from("accounts").update({ balance }).eq("id", id)
     );
 
     const goalUpdates = Array.from(goalBalances.entries()).map(([id, amount]) =>
-      supabase
-        .from("goals")
-        .update({
-          current_amount: amount,
-        })
-        .eq("id", id)
+      supabase.from("goals").update({ current_amount: amount }).eq("id", id)
     );
 
     const updateResults = await Promise.all([...accountUpdates, ...goalUpdates]);
@@ -906,7 +904,9 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
 
       if (!userId) return;
 
-      const initialBalance = Number(account.initialBalance ?? account.balance ?? 0);
+      const initialBalance = Number(
+        account.initialBalance ?? account.balance ?? 0
+      );
 
       const { error } = await supabase.from("accounts").insert({
         user_id: userId,
@@ -1203,22 +1203,31 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       const toTargetType = operation.toTargetType ?? "account";
 
       const accountId =
-        fromTargetType === "account"
+        operation.type === "expense" ||
+        (operation.type === "income" && toTargetType === "account") ||
+        (operation.type === "transfer" && fromTargetType === "account")
           ? findAccountId(state.accounts, operation.account)
           : null;
 
       const goalId =
-        fromTargetType === "goal" && operation.goal
-          ? findGoalId(state.goals, operation.goal)
+        (operation.type === "income" && toTargetType === "goal" && operation.goal) ||
+        (operation.type === "transfer" &&
+          fromTargetType === "goal" &&
+          operation.goal)
+          ? findGoalId(state.goals, operation.goal ?? "")
           : null;
 
       const toAccountId =
-        toTargetType === "account" && operation.toAccount
+        operation.type === "transfer" &&
+        toTargetType === "account" &&
+        operation.toAccount
           ? findAccountId(state.accounts, operation.toAccount)
           : null;
 
       const toGoalId =
-        toTargetType === "goal" && operation.toGoal
+        operation.type === "transfer" &&
+        toTargetType === "goal" &&
+        operation.toGoal
           ? findGoalId(state.goals, operation.toGoal)
           : null;
 
@@ -1227,9 +1236,21 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
           ? null
           : findCategoryId(state.categories, operation.category);
 
-      if (operation.type !== "transfer" && !accountId) {
-        alert("Не найден счет для операции");
+      if (operation.type === "expense" && !accountId) {
+        alert("Не найден счет для расхода");
         return;
+      }
+
+      if (operation.type === "income") {
+        if (toTargetType === "account" && !accountId) {
+          alert("Не найден счет для дохода");
+          return;
+        }
+
+        if (toTargetType === "goal" && !goalId) {
+          alert("Не найдена цель для дохода");
+          return;
+        }
       }
 
       if (operation.type === "transfer") {
@@ -1261,12 +1282,16 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         amount: operation.amount,
         currency: "RUB",
 
-        from_target_type: fromTargetType,
-        to_target_type: operation.type === "transfer" ? toTargetType : null,
+        from_target_type:
+          operation.type === "transfer" ? fromTargetType : null,
+        to_target_type:
+          operation.type === "income" || operation.type === "transfer"
+            ? toTargetType
+            : null,
 
         account_id: accountId,
         to_account_id: operation.type === "transfer" ? toAccountId : null,
-        goal_id: operation.type === "transfer" ? goalId : null,
+        goal_id: goalId,
         to_goal_id: operation.type === "transfer" ? toGoalId : null,
 
         category_id: categoryId,
@@ -1304,22 +1329,31 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       const toTargetType = operation.toTargetType ?? "account";
 
       const accountId =
-        fromTargetType === "account"
+        operation.type === "expense" ||
+        (operation.type === "income" && toTargetType === "account") ||
+        (operation.type === "transfer" && fromTargetType === "account")
           ? findAccountId(state.accounts, operation.account)
           : null;
 
       const goalId =
-        fromTargetType === "goal" && operation.goal
-          ? findGoalId(state.goals, operation.goal)
+        (operation.type === "income" && toTargetType === "goal" && operation.goal) ||
+        (operation.type === "transfer" &&
+          fromTargetType === "goal" &&
+          operation.goal)
+          ? findGoalId(state.goals, operation.goal ?? "")
           : null;
 
       const toAccountId =
-        toTargetType === "account" && operation.toAccount
+        operation.type === "transfer" &&
+        toTargetType === "account" &&
+        operation.toAccount
           ? findAccountId(state.accounts, operation.toAccount)
           : null;
 
       const toGoalId =
-        toTargetType === "goal" && operation.toGoal
+        operation.type === "transfer" &&
+        toTargetType === "goal" &&
+        operation.toGoal
           ? findGoalId(state.goals, operation.toGoal)
           : null;
 
@@ -1328,9 +1362,21 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
           ? null
           : findCategoryId(state.categories, operation.category);
 
-      if (operation.type !== "transfer" && !accountId) {
-        alert("Не найден счет для операции");
+      if (operation.type === "expense" && !accountId) {
+        alert("Не найден счет для расхода");
         return;
+      }
+
+      if (operation.type === "income") {
+        if (toTargetType === "account" && !accountId) {
+          alert("Не найден счет для дохода");
+          return;
+        }
+
+        if (toTargetType === "goal" && !goalId) {
+          alert("Не найдена цель для дохода");
+          return;
+        }
       }
 
       if (operation.type === "transfer") {
@@ -1361,12 +1407,16 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         amount: operation.amount,
         currency: "RUB",
 
-        from_target_type: fromTargetType,
-        to_target_type: operation.type === "transfer" ? toTargetType : null,
+        from_target_type:
+          operation.type === "transfer" ? fromTargetType : null,
+        to_target_type:
+          operation.type === "income" || operation.type === "transfer"
+            ? toTargetType
+            : null,
 
         account_id: accountId,
         to_account_id: operation.type === "transfer" ? toAccountId : null,
-        goal_id: operation.type === "transfer" ? goalId : null,
+        goal_id: goalId,
         to_goal_id: operation.type === "transfer" ? toGoalId : null,
 
         category_id: categoryId,
